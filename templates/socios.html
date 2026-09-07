@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestión de Socios | GymPro</title>
+    <title>Gestión de Socios | {{ gym_nombre }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
@@ -14,7 +14,7 @@
                 <div class="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center font-black text-emerald-400 text-sm">
                     GP
                 </div>
-                <span class="text-xl font-bold tracking-tight text-white">Gym<span class="text-emerald-400">Pro</span></span>
+                <span class="text-xl font-bold tracking-tight text-white">{{ gym_nombre }}</span>
             </div>
             <nav class="hidden lg:flex space-x-4 text-sm font-medium">
                 <a href="/dashboard" class="text-slate-400 hover:text-white transition">Dashboard</a>
@@ -39,11 +39,16 @@
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
                 <h1 class="text-2xl font-black text-white">Padrón de Socios</h1>
-                <p class="text-xs text-slate-400">Control de perfiles con foto, cuotas y links de pago directo por WhatsApp.</p>
+                <p class="text-xs text-slate-400">Control de asistencia, auditoría de molinete y links de pago directo.</p>
             </div>
-            <button onclick="document.getElementById('modal-crear').classList.remove('hidden')" class="bg-emerald-500 hover:bg-emerald-600 px-4 py-2.5 rounded-xl text-xs font-bold text-white transition flex items-center gap-2 shadow-lg shadow-emerald-500/20">
-                <span>+</span> Nuevo Socio
-            </button>
+            <div class="flex gap-2">
+                <a href="/exportar/accesos-csv" class="bg-slate-800 hover:bg-slate-700 px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-200 transition flex items-center gap-2 border border-slate-700">
+                    📥 Descargar Todos los Accesos (CSV)
+                </a>
+                <button onclick="document.getElementById('modal-crear').classList.remove('hidden')" class="bg-emerald-500 hover:bg-emerald-600 px-4 py-2.5 rounded-xl text-xs font-bold text-white transition flex items-center gap-2 shadow-lg shadow-emerald-500/20">
+                    <span>+</span> Nuevo Socio
+                </button>
+            </div>
         </div>
 
         <!-- Tabla de Socios -->
@@ -148,7 +153,11 @@
                             </td>
 
                             <td class="p-4 text-right space-x-1.5 whitespace-nowrap">
-                                <!-- Botón Link de Pago y WhatsApp -->
+                                <!-- BOTÓN DE CONTROL INDIVIDUAL DE ACCESOS -->
+                                <button onclick="verHistorialAccesos({{ s.id }})" class="bg-slate-800 hover:bg-slate-700 px-2.5 py-1.5 rounded-lg text-xs font-bold text-emerald-400 border border-slate-700 transition" title="Ver historial de asistencias y entradas">
+                                    📋 Accesos
+                                </button>
+
                                 <button onclick="abrirModalCobroMP({{ s.id }})" class="bg-sky-600 hover:bg-sky-500 px-2.5 py-1.5 rounded-lg text-xs font-bold text-white transition flex-inline items-center gap-1">
                                     📲 Link MP
                                 </button>
@@ -176,6 +185,56 @@
             </div>
         </div>
     </main>
+
+    <!-- MODAL HISTORIAL INDIVIDUAL DE ACCESOS POR SOCIO -->
+    <div id="modal-historial-accesos" class="hidden fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-3xl p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-start">
+                <div class="flex items-center space-x-3">
+                    <div id="hist-foto-container"></div>
+                    <div>
+                        <h3 id="hist-socio-nombre" class="font-bold text-lg text-white">Historial de Accesos</h3>
+                        <p id="hist-socio-dni" class="text-xs text-slate-400 font-mono">DNI: -</p>
+                    </div>
+                </div>
+                <button onclick="document.getElementById('modal-historial-accesos').classList.add('hidden')" class="text-slate-400 hover:text-white text-2xl font-bold">&times;</button>
+            </div>
+
+            <!-- Resumen de Entradas en el Mes -->
+            <div class="grid grid-cols-2 gap-3 bg-slate-950 p-3 rounded-2xl border border-slate-800">
+                <div class="text-center border-r border-slate-800">
+                    <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Ingresos Este Mes</span>
+                    <div id="hist-accesos-mes" class="text-2xl font-black text-emerald-400 mt-0.5">0</div>
+                </div>
+                <div class="text-center">
+                    <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Total Registrados</span>
+                    <div id="hist-total-registros" class="text-2xl font-black text-indigo-400 mt-0.5">0</div>
+                </div>
+            </div>
+
+            <!-- Tabla de Registros Individuales -->
+            <div class="overflow-y-auto flex-1 border border-slate-800 rounded-2xl">
+                <table class="w-full text-left text-xs">
+                    <thead class="bg-slate-950 text-slate-400 uppercase font-semibold sticky top-0 border-b border-slate-800">
+                        <tr>
+                            <th class="p-3">Fecha y Hora</th>
+                            <th class="p-3 text-center">Estado</th>
+                            <th class="p-3">Detalle / Motivo</th>
+                        </tr>
+                    </thead>
+                    <tbody id="hist-tbody" class="divide-y divide-slate-800">
+                        <!-- Filas cargadas dinámicamente -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="pt-2 text-right">
+                <button onclick="document.getElementById('modal-historial-accesos').classList.add('hidden')" class="px-5 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-bold transition">
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- MODAL LINK DE MERCADO PAGO / WHATSAPP -->
     <div id="modal-mp-link" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -217,7 +276,7 @@
         </div>
     </div>
 
-    <!-- MODAL 1: Crear Socio con Foto -->
+    <!-- MODAL CREAR SOCIO -->
     <div id="modal-crear" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-2xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center mb-4">
@@ -281,7 +340,7 @@
         </div>
     </div>
 
-    <!-- MODAL 2: Modificar Socio -->
+    <!-- MODAL EDITAR SOCIO -->
     <div id="modal-editar" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-2xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center mb-4">
@@ -345,7 +404,7 @@
         </div>
     </div>
 
-    <!-- MODAL 3: Permisos -->
+    <!-- MODAL PERMISOS -->
     <div id="modal-permiso" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-2xl p-6 shadow-2xl">
             <h3 class="font-bold text-lg text-white mb-1">Control de Acceso Administrativo</h3>
@@ -386,7 +445,7 @@
         </div>
     </div>
 
-    <!-- MODAL 4: Ver QR y Foto -->
+    <!-- MODAL QR -->
     <div id="modal-qr" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 w-full max-w-sm rounded-2xl p-6 text-center shadow-2xl">
             <div id="qr-foto-container" class="mb-3"></div>
@@ -400,6 +459,52 @@
     </div>
 
     <script>
+        // Ver el Historial Individual de Accesos del Socio
+        async function verHistorialAccesos(socioId) {
+            try {
+                const res = await fetch('/api/socios/' + socioId + '/accesos');
+                if (!res.ok) throw new Error('No se pudo cargar el historial');
+                const data = await res.json();
+
+                document.getElementById('hist-socio-nombre').innerText = data.socio;
+                document.getElementById('hist-socio-dni').innerText = 'DNI: ' + data.dni;
+                document.getElementById('hist-accesos-mes').innerText = data.accesos_mes;
+                document.getElementById('hist-total-registros').innerText = data.total_registros;
+
+                const fotoContainer = document.getElementById('hist-foto-container');
+                if (data.foto) {
+                    fotoContainer.innerHTML = `<img src="${data.foto}" class="w-10 h-10 rounded-full object-cover border border-emerald-500">`;
+                } else {
+                    fotoContainer.innerHTML = `<div class="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-xs font-bold text-slate-300">GP</div>`;
+                }
+
+                const tbody = document.getElementById('hist-tbody');
+                if (data.historial.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="3" class="p-4 text-center text-slate-500">Sin registros de accesos aún.</td></tr>`;
+                } else {
+                    tbody.innerHTML = data.historial.map(a => {
+                        const esPermitido = a.resultado === 'PERMITIDO';
+                        const badgeColor = esPermitido ? 'bg-emerald-950 text-emerald-400 border-emerald-800' : 'bg-rose-950 text-rose-400 border-rose-800';
+                        return `
+                            <tr class="hover:bg-slate-800/30">
+                                <td class="p-3 font-mono text-slate-300">${a.fecha} <span class="text-slate-500">${a.hora}</span></td>
+                                <td class="p-3 text-center">
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold border ${badgeColor}">
+                                        ${a.resultado}
+                                    </span>
+                                </td>
+                                <td class="p-3 text-slate-300 text-xs">${a.motivo}</td>
+                            </tr>
+                        `;
+                    }).join('');
+                }
+
+                document.getElementById('modal-historial-accesos').classList.remove('hidden');
+            } catch (err) {
+                alert('No se pudo cargar el historial de accesos del socio.');
+            }
+        }
+
         async function abrirModalCobroMP(socioId) {
             try {
                 const res = await fetch('/api/socio/link-pago/' + socioId);
@@ -414,7 +519,7 @@
 
                 document.getElementById('modal-mp-link').classList.remove('hidden');
             } catch (err) {
-                alert('Error al generar la preferencia de Mercado Pago. Verifica la configuración de Access Token.');
+                alert('Error al generar la preferencia de Mercado Pago.');
             }
         }
 

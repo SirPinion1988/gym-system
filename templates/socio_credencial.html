@@ -8,9 +8,9 @@
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen p-4 flex flex-col items-center justify-center">
 
-    <div class="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl relative overflow-hidden">
-        <!-- Encabezado con Logo o Foto -->
-        <div class="flex justify-between items-center mb-4">
+    <div class="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl relative overflow-hidden space-y-4">
+        <!-- Encabezado con Nombre Configurable y Logo -->
+        <div class="flex justify-between items-center">
             <div class="flex items-center space-x-3">
                 {% if socio.foto_base64 %}
                     <img src="{{ socio.foto_base64 }}" alt="Foto Socio" class="w-12 h-12 rounded-full object-cover border-2 border-emerald-500 shadow-md">
@@ -20,7 +20,7 @@
                     </div>
                 {% endif %}
                 <div>
-                    <span class="text-[10px] uppercase tracking-wider text-emerald-400 font-bold">Gimnasio Fitness</span>
+                    <span class="text-[10px] uppercase tracking-wider text-emerald-400 font-bold">{{ gym_nombre }}</span>
                     <h1 class="text-base font-black text-white leading-tight">{{ socio.nombre }} {{ socio.apellido }}</h1>
                     <p class="text-xs text-slate-400 font-mono">DNI: {{ socio.dni }}</p>
                 </div>
@@ -33,74 +33,210 @@
             </div>
         </div>
 
-        <!-- Estado de Acceso -->
-        {% if habilitado %}
-            <div class="bg-emerald-950/70 border border-emerald-500/40 text-emerald-300 text-xs font-black px-3 py-2.5 rounded-xl text-center mb-4 flex items-center justify-center gap-2 shadow-lg">
-                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> PUEDE PASAR AL GIMNASIO
-            </div>
-        {% else %}
-            <div class="bg-rose-950/70 border border-rose-500/40 text-rose-300 text-xs font-black px-3 py-2.5 rounded-xl text-center mb-4 flex items-center justify-center gap-2 shadow-lg">
-                <span>🔒</span> FALTA REGULARIZAR INGRESO
-            </div>
-        {% endif %}
-
-        <!-- Código QR -->
-        <div class="bg-white p-4 rounded-2xl mx-auto mb-4 text-center shadow-inner">
-            <img src="{{ qr_image }}" alt="Código QR Socio" class="w-48 h-48 mx-auto">
+        <!-- Selector de Sección: Credencial / QR vs Rutina -->
+        <div class="grid grid-cols-2 gap-2 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
+            <button id="btn-tab-acceso" onclick="cambiarSeccion('acceso')" class="py-2 rounded-xl text-xs font-bold transition bg-emerald-500 text-white shadow-md">
+                📱 Mi Acceso
+            </button>
+            <button id="btn-tab-rutina" onclick="cambiarSeccion('rutina')" class="py-2 rounded-xl text-xs font-bold transition text-slate-400 hover:text-white">
+                🏋️‍♂️ Mi Rutina
+            </button>
         </div>
 
-        <!-- Detalles Socio -->
-        <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4 mb-4 space-y-2">
-            <div class="flex justify-between items-center text-xs">
-                <span class="text-slate-400">Plan contratado:</span>
-                <span class="font-bold text-white">{{ plan.nombre if plan else 'Pase General' }}</span>
+        <!-- SECCIÓN 1: ACCESO Y QR -->
+        <div id="seccion-acceso" class="space-y-4">
+            <!-- Estado de Acceso -->
+            {% if habilitado %}
+                <div class="bg-emerald-950/70 border border-emerald-500/40 text-emerald-300 text-xs font-black px-3 py-2.5 rounded-xl text-center flex items-center justify-center gap-2 shadow-lg">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> PUEDE PASAR AL GIMNASIO
+                </div>
+            {% else %}
+                <div class="bg-rose-950/70 border border-rose-500/40 text-rose-300 text-xs font-black px-3 py-2.5 rounded-xl text-center flex items-center justify-center gap-2 shadow-lg">
+                    <span>🔒</span> FALTA REGULARIZAR INGRESO
+                </div>
+            {% endif %}
+
+            <!-- Código QR -->
+            <div class="bg-white p-4 rounded-2xl mx-auto text-center shadow-inner">
+                <img src="{{ qr_image }}" alt="Código QR Socio" class="w-48 h-48 mx-auto">
             </div>
-            <div class="flex justify-between items-center text-xs">
-                <span class="text-slate-400">Cuota mensual:</span>
-                <span class="font-bold text-emerald-400 text-sm">${{ "%.2f"|format(plan.precio) if plan else '0.00' }}</span>
+
+            <!-- Detalles Socio -->
+            <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-2">
+                <div class="flex justify-between items-center text-xs">
+                    <span class="text-slate-400">Plan contratado:</span>
+                    <span class="font-bold text-white">{{ plan.nombre if plan else 'Pase General' }}</span>
+                </div>
+                <div class="flex justify-between items-center text-xs">
+                    <span class="text-slate-400">Cuota mensual:</span>
+                    <span class="font-bold text-emerald-400 text-sm">${{ "%.2f"|format(plan.precio) if plan else '0.00' }}</span>
+                </div>
+                <div class="flex justify-between items-center text-xs">
+                    <span class="text-slate-400">Vencimiento Cuota:</span>
+                    <span class="font-mono {% if cuota_al_dia %}text-slate-200{% else %}text-rose-400 font-bold{% endif %}">
+                        {{ socio.fecha_vencimiento_cuota.strftime('%d/%m/%Y') if socio.fecha_vencimiento_cuota else 'Pendiente' }}
+                    </span>
+                </div>
+                <div class="flex justify-between items-center text-xs">
+                    <span class="text-slate-400">Apto Médico (1 Año):</span>
+                    <span class="{% if apto_al_dia %}text-emerald-400{% else %}text-amber-400 font-bold{% endif %}">
+                        {{ 'Vigente hasta ' + socio.apto_medico_vencimiento.strftime('%d/%m/%Y') if apto_al_dia else 'Presentar Apto' }}
+                    </span>
+                </div>
+                {% if permiso_especial %}
+                <div class="flex justify-between items-center text-xs pt-1 border-t border-slate-800/80">
+                    <span class="text-indigo-400">Permiso Especial:</span>
+                    <span class="font-bold text-indigo-300">Habilitado hasta {{ socio.habilitacion_manual_hasta.strftime('%d/%m/%Y') }}</span>
+                </div>
+                {% endif %}
             </div>
-            <div class="flex justify-between items-center text-xs">
-                <span class="text-slate-400">Vencimiento Cuota:</span>
-                <span class="font-mono {% if cuota_al_dia %}text-slate-200{% else %}text-rose-400 font-bold{% endif %}">
-                    {{ socio.fecha_vencimiento_cuota.strftime('%d/%m/%Y') if socio.fecha_vencimiento_cuota else 'Pendiente' }}
-                </span>
+
+            <!-- Opciones de Pago Online -->
+            <div class="space-y-2.5">
+                {% if not cuota_al_dia and init_point_mp %}
+                    <a href="{{ init_point_mp }}" class="w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 rounded-xl text-sm transition flex items-center justify-center gap-2 shadow-lg shadow-sky-500/20">
+                        <span>💳</span> Pagar Cuota con Mercado Pago (${{ "%.2f"|format(plan.precio) }})
+                    </a>
+                    <p class="text-[10px] text-center text-slate-500">
+                        Tu acceso se renueva automáticamente al acreditarse el pago.
+                    </p>
+                {% endif %}
+
+                <!-- Historial Comprobantes ARCA -->
+                {% if facturas %}
+                    <div class="pt-2 border-t border-slate-800">
+                        <span class="text-[11px] font-bold text-slate-400 block mb-2">Mis Facturas y Comprobantes ARCA:</span>
+                        <div class="space-y-1.5 max-h-36 overflow-y-auto">
+                            {% for f in facturas %}
+                            <a href="/factura/descargar/{{ f.id }}" class="w-full bg-slate-800/80 hover:bg-slate-800 text-slate-300 px-3 py-2 rounded-xl text-xs transition flex justify-between items-center border border-slate-700/60">
+                                <span>📄 Comp. {{ "%04d"|format(f.punto_venta) }}-{{ "%08d"|format(f.numero_comprobante) }}</span>
+                                <span class="text-emerald-400 font-mono font-bold">${{ "%.2f"|format(f.monto_total) }}</span>
+                            </a>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endif %}
             </div>
-            <div class="flex justify-between items-center text-xs">
-                <span class="text-slate-400">Apto Médico (1 Año):</span>
-                <span class="{% if apto_al_dia %}text-emerald-400{% else %}text-amber-400 font-bold{% endif %}">
-                    {{ 'Vigente hasta ' + socio.apto_medico_vencimiento.strftime('%d/%m/%Y') if apto_al_dia else 'Presentar Apto' }}
-                </span>
-            </div>
-            {% if permiso_especial %}
-            <div class="flex justify-between items-center text-xs pt-1 border-t border-slate-800/80">
-                <span class="text-indigo-400">Permiso Especial:</span>
-                <span class="font-bold text-indigo-300">Habilitado hasta {{ socio.habilitacion_manual_hasta.strftime('%d/%m/%Y') }}</span>
-            </div>
+        </div>
+
+        <!-- SECCIÓN 2: RUTINA Y ENTRENAMIENTO -->
+        <div id="seccion-rutina" class="space-y-4 hidden">
+            {% if rutina %}
+                <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4">
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-400">{{ rutina.objetivo or 'Plan de Trabajo' }}</span>
+                            <h2 class="text-base font-black text-white">{{ rutina.nombre_rutina }}</h2>
+                        </div>
+                        <button onclick="reiniciarRutina({{ rutina.id }})" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded-lg border border-slate-700" title="Reiniciar todos los tildes">
+                            🔄 Reiniciar
+                        </button>
+                    </div>
+
+                    <!-- Barra de Progreso en Vivo -->
+                    <div class="space-y-1 mt-3">
+                        <div class="flex justify-between text-[11px]">
+                            <span class="text-slate-400">Progreso del Entrenamiento:</span>
+                            <span id="progreso-texto" class="font-bold text-emerald-400">{{ porcentaje_rutina }}%</span>
+                        </div>
+                        <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                            <div id="progreso-barra" class="bg-emerald-500 h-2 rounded-full transition-all duration-300" style="width: {{ porcentaje_rutina }}%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Lista de Ejercicios con Checkbox Interactivo -->
+                <div class="space-y-2.5 max-h-96 overflow-y-auto pr-1">
+                    {% for ej in rutina.ejercicios %}
+                    <div id="card-ej-{{ ej.id }}" class="p-3 rounded-2xl border transition flex items-start justify-between gap-3 {% if ej.completado %}bg-emerald-950/20 border-emerald-800/60 opacity-80{% else %}bg-slate-950 border-slate-800{% endif %}">
+                        <div class="flex-1">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-400 block mb-0.5">{{ ej.dia_grupo }}</span>
+                            <h4 id="nombre-ej-{{ ej.id }}" class="text-sm font-bold {% if ej.completado %}line-through text-slate-400{% else %}text-white{% endif %}">{{ ej.ejercicio }}</h4>
+                            <div class="text-xs text-slate-400 mt-1 flex flex-wrap gap-x-3 gap-y-1 font-mono">
+                                <span><b>Series:</b> {{ ej.series }}</span>
+                                <span><b>Reps:</b> {{ ej.repeticiones }}</span>
+                                {% if ej.peso_sugerido %}<span><b>Carga:</b> {{ ej.peso_sugerido }}</span>{% endif %}
+                                <span><b>Desc:</b> {{ ej.descanso }}</span>
+                            </div>
+                        </div>
+                        <button onclick="toggleEjercicio({{ ej.id }})" class="mt-1 w-7 h-7 rounded-xl flex items-center justify-center border transition {% if ej.completado %}bg-emerald-500 border-emerald-400 text-white{% else %}bg-slate-900 border-slate-700 text-transparent hover:border-emerald-500{% endif %}">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                        </button>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="bg-slate-950 border border-slate-800 rounded-2xl p-8 text-center space-y-2">
+                    <span class="text-3xl">📋</span>
+                    <h3 class="font-bold text-white text-sm">Aún no tienes una rutina asignada</h3>
+                    <p class="text-xs text-slate-400">Pídele a tu profesor o al personal en recepción que cargue tu plan de entrenamiento.</p>
+                </div>
             {% endif %}
         </div>
 
-        <!-- Pago Online -->
-        <div class="space-y-2.5">
-            {% if not cuota_al_dia and init_point_mp %}
-                <a href="{{ init_point_mp }}" class="w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 rounded-xl text-sm transition flex items-center justify-center gap-2 shadow-lg shadow-sky-500/20">
-                    <span>💳</span> Pagar Cuota con Mercado Pago (${{ "%.2f"|format(plan.precio) }})
-                </a>
-                <p class="text-[10px] text-center text-slate-500">
-                    Tu acceso se renueva de forma automática al acreditarse el pago.
-                </p>
-            {% endif %}
-
-            {% if ultima_factura %}
-                <a href="/factura/descargar/{{ ultima_factura.id }}" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold py-2 rounded-xl text-xs transition flex items-center justify-center gap-2 border border-slate-700">
-                    <span>📄</span> Descargar Factura ARCA (CAE: {{ ultima_factura.cae }})
-                </a>
-            {% endif %}
-        </div>
-
-        <div class="mt-4 pt-3 border-t border-slate-800 text-center">
+        <div class="pt-3 border-t border-slate-800 text-center">
             <a href="/" class="text-xs text-slate-400 hover:text-white">Cerrar credencial</a>
         </div>
     </div>
 
+    <script>
+        function cambiarSeccion(tipo) {
+            const secAcceso = document.getElementById('seccion-acceso');
+            const secRutina = document.getElementById('seccion-rutina');
+            const btnAcceso = document.getElementById('btn-tab-acceso');
+            const btnRutina = document.getElementById('btn-tab-rutina');
+
+            if (tipo === 'acceso') {
+                secAcceso.classList.remove('hidden');
+                secRutina.classList.add('hidden');
+                btnAcceso.className = "py-2 rounded-xl text-xs font-bold transition bg-emerald-500 text-white shadow-md";
+                btnRutina.className = "py-2 rounded-xl text-xs font-bold transition text-slate-400 hover:text-white";
+            } else {
+                secRutina.classList.remove('hidden');
+                secAcceso.classList.add('hidden');
+                btnRutina.className = "py-2 rounded-xl text-xs font-bold transition bg-indigo-600 text-white shadow-md";
+                btnAcceso.className = "py-2 rounded-xl text-xs font-bold transition text-slate-400 hover:text-white";
+            }
+        }
+
+        async function toggleEjercicio(ejercicioId) {
+            try {
+                const res = await fetch('/api/socio/rutina/toggle-ejercicio/' + ejercicioId, { method: 'POST' });
+                if (!res.ok) throw new Error('Error al actualizar ejercicio');
+                const data = await res.json();
+
+                // Actualizar barra y texto
+                document.getElementById('progreso-texto').innerText = data.porcentaje + '%';
+                document.getElementById('progreso-barra').style.width = data.porcentaje + '%';
+
+                // Actualizar estilos del item
+                const card = document.getElementById('card-ej-' + ejercicioId);
+                const nombre = document.getElementById('nombre-ej-' + ejercicioId);
+                const btn = card.querySelector('button');
+
+                if (data.completado) {
+                    card.className = "p-3 rounded-2xl border transition flex items-start justify-between gap-3 bg-emerald-950/20 border-emerald-800/60 opacity-80";
+                    nombre.className = "text-sm font-bold line-through text-slate-400";
+                    btn.className = "mt-1 w-7 h-7 rounded-xl flex items-center justify-center border transition bg-emerald-500 border-emerald-400 text-white";
+                } else {
+                    card.className = "p-3 rounded-2xl border transition flex items-start justify-between gap-3 bg-slate-950 border-slate-800";
+                    nombre.className = "text-sm font-bold text-white";
+                    btn.className = "mt-1 w-7 h-7 rounded-xl flex items-center justify-center border transition bg-slate-900 border-slate-700 text-transparent hover:border-emerald-500";
+                }
+            } catch (err) {
+                alert('No se pudo marcar el ejercicio.');
+            }
+        }
+
+        async function reiniciarRutina(rutinaId) {
+            if (!confirm('¿Deseas reiniciar los tildes de toda la rutina para empezar de nuevo?')) return;
+            try {
+                const res = await fetch('/api/socio/rutina/reiniciar/' + rutinaId, { method: 'POST' });
+                if (res.ok) window.location.reload();
+            } catch (err) {
+                alert('Error al reiniciar la rutina.');
+            }
+        }
+    </script>
 </body>
 </html>

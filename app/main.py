@@ -25,7 +25,8 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Sistema de Gestión de Gimnasio - GymPro")
 
-MP_ACCESS_TOKEN = os.getenv("MP_ACCESS_TOKEN", "TEST-0000000000000000-000000-000000-00000000000000000000000000000000-000000000")
+GYM_NOMBRE = os.getenv("EMPRESA_RAZON_SOCIAL", "GymPro Fitness")
+MP_ACCESS_TOKEN = os.getenv("MP_ACCESS_TOKEN", "TEST-0000000000000000-000000-000000-000000-0000000000000000-000000000")
 mp_sdk = mercadopago.SDK(MP_ACCESS_TOKEN)
 APP_PUBLIC_URL = os.getenv("APP_PUBLIC_URL", "https://gimnasio-app-0qhn.onrender.com")
 
@@ -153,13 +154,13 @@ def procesar_factura_y_mail(socio_id: int, pago_id: int, monto: float, concepto:
         db.close()
 
 
-# --- RUTAS DE LOGIN Y PORTAL INICIAL ---
+# --- LOGIN Y PORTAL INICIAL ---
 
 @app.get("/", response_class=HTMLResponse)
 def index_hub(request: Request, user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user)):
     if user:
         return RedirectResponse(url="/dashboard", status_code=status.HTTP_302_FOUND)
-    return templates.TemplateResponse(request=request, name="login_hub.html", context={"error_admin": None, "error_socio": None})
+    return templates.TemplateResponse(request=request, name="login_hub.html", context={"error_admin": None, "error_socio": None, "gym_nombre": GYM_NOMBRE})
 
 
 @app.get("/login", response_class=HTMLResponse)
@@ -177,7 +178,7 @@ def login_admin_action(
 ):
     user = db.query(models.UsuarioSistema).filter(models.UsuarioSistema.username == username.strip()).first()
     if not user or not auth.verify_password(password, user.password_hash) or not user.activo:
-        return templates.TemplateResponse(request=request, name="login_hub.html", context={"error_admin": "Credenciales inválidas o cuenta inactiva.", "error_socio": None})
+        return templates.TemplateResponse(request=request, name="login_hub.html", context={"error_admin": "Credenciales inválidas o cuenta inactiva.", "error_socio": None, "gym_nombre": GYM_NOMBRE})
 
     token = auth.create_access_token(data={"sub": user.username, "rol": user.rol})
     resp = RedirectResponse(url="/dashboard", status_code=status.HTTP_302_FOUND)
@@ -198,7 +199,7 @@ def login_socio_action(
     ).first()
 
     if not socio:
-        return templates.TemplateResponse(request=request, name="login_hub.html", context={"error_socio": "DNI o correo no coinciden con nuestros registros.", "error_admin": None})
+        return templates.TemplateResponse(request=request, name="login_hub.html", context={"error_socio": "DNI o correo no coinciden con nuestros registros.", "error_admin": None, "gym_nombre": GYM_NOMBRE})
 
     return RedirectResponse(url=f"/socio/credencial/{socio.id}", status_code=status.HTTP_302_FOUND)
 
@@ -224,7 +225,7 @@ def usuarios_sistema_view(
         raise HTTPException(status_code=403, detail="Acceso denegado.")
 
     usuarios = db.query(models.UsuarioSistema).order_by(models.UsuarioSistema.id.asc()).all()
-    return templates.TemplateResponse(request=request, name="usuarios.html", context={"user": user, "usuarios": usuarios})
+    return templates.TemplateResponse(request=request, name="usuarios.html", context={"user": user, "usuarios": usuarios, "gym_nombre": GYM_NOMBRE})
 
 
 @app.post("/usuarios/crear")
@@ -302,7 +303,8 @@ def dashboard(
             "socios_activos": socios_activos,
             "total_profes": total_profes,
             "total_clases": total_clases,
-            "ultimos_accesos": ultimos_accesos
+            "ultimos_accesos": ultimos_accesos,
+            "gym_nombre": GYM_NOMBRE
         }
     )
 
@@ -320,7 +322,8 @@ def socios_view(request: Request, user: Optional[models.UsuarioSistema] = Depend
         "user": user,
         "socios": socios,
         "planes": planes,
-        "hoy": hoy
+        "hoy": hoy,
+        "gym_nombre": GYM_NOMBRE
     })
 
 
@@ -488,6 +491,44 @@ def ver_qr_socio(socio_id: int, user: Optional[models.UsuarioSistema] = Depends(
     })
 
 
+@app.get("/api/socios/{socio_id}/accesos")
+def api_historial_accesos_socio(socio_id: int, user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user), db: Session = Depends(get_db)):
+    if not user:
+        raise HTTPException(status_code=401)
+    socio = db.query(models.Socio).get(socio_id)
+    if not socio:
+        raise HTTPException(status_code=404, detail="Socio no encontrado")
+
+    accesos = db.query(models.RegistroAcceso).filter(models.RegistroAcceso.socio_id == socio_id).order_by(models.RegistroAcceso.fecha_hora.desc()).limit(50).all()
+
+    hoy = date.today()
+    primer_dia_mes = date(hoy.year, hoy.month, 1)
+    accesos_mes = db.query(models.RegistroAcceso).filter(
+        models.RegistroAcceso.socio_id == socio_id,
+        models.RegistroAcceso.resultado == "PERMITIDO",
+        models.RegistroAcceso.fecha_hora >= primer_dia_mes
+    ).count()
+
+    lista = []
+    for a in accesos:
+        lista.append({
+            "id": a.id,
+            "fecha": a.fecha_hora.strftime("%d/%m/%Y"),
+            "hora": a.fecha_hora.strftime("%H:%M:%S"),
+            "resultado": a.resultado,
+            "motivo": a.motivo
+        })
+
+    return JSONResponse({
+        "socio": f"{socio.nombre} {socio.apellido}",
+        "dni": socio.dni,
+        "foto": socio.foto_base64,
+        "accesos_mes": accesos_mes,
+        "total_registros": len(lista),
+        "historial": lista
+    })
+
+
 @app.get("/api/socio/link-pago/{socio_id}")
 def api_generar_link_pago(socio_id: int, user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user), db: Session = Depends(get_db)):
     if not user:
@@ -505,7 +546,7 @@ def api_generar_link_pago(socio_id: int, user: Optional[models.UsuarioSistema] =
         preference_data = {
             "items": [
                 {
-                    "title": f"Abono {plan.nombre} - Socio {socio.nombre} {socio.apellido}",
+                    "title": f"Abono {plan.nombre} - {socio.nombre} {socio.apellido}",
                     "quantity": 1,
                     "unit_price": float(plan.precio),
                     "currency_id": "ARS"
@@ -534,7 +575,7 @@ def api_generar_link_pago(socio_id: int, user: Optional[models.UsuarioSistema] =
         print(f"Error generando MP link: {e}")
 
     cel_clean = "".join([c for c in socio.celular if c.isdigit()])
-    mensaje = f"Hola {socio.nombre}! Te enviamos el link para abonar tu cuota de {plan.nombre} (${plan.precio:.2f}): {link_pago}"
+    mensaje = f"Hola {socio.nombre}! Te enviamos el link de {GYM_NOMBRE} para abonar tu cuota de {plan.nombre} (${plan.precio:.2f}): {link_pago}"
     msg_encoded = urllib.parse.quote(mensaje)
     whatsapp_url = f"https://wa.me/{cel_clean}?text={msg_encoded}" if cel_clean else f"https://wa.me/?text={msg_encoded}"
 
@@ -545,6 +586,183 @@ def api_generar_link_pago(socio_id: int, user: Optional[models.UsuarioSistema] =
         "monto": plan.precio,
         "plan": plan.nombre
     })
+
+
+# --- MÓDULO ADMINISTRATIVO DE RUTINAS Y ENTRENAMIENTOS ---
+
+@app.get("/rutinas", response_class=HTMLResponse)
+def rutinas_admin_view(request: Request, user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user), db: Session = Depends(get_db)):
+    if not user:
+        return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
+
+    rutinas = db.query(models.Rutina).options(
+        joinedload(models.Rutina.socio),
+        joinedload(models.Rutina.profesor),
+        joinedload(models.Rutina.ejercicios)
+    ).order_by(models.Rutina.id.desc()).all() or []
+
+    socios = db.query(models.Socio).order_by(models.Socio.apellido.asc()).all() or []
+    profesores = db.query(models.Profesor).filter(models.Profesor.activo == True).order_by(models.Profesor.apellido.asc()).all() or []
+
+    return templates.TemplateResponse(request=request, name="rutinas_admin.html", context={
+        "user": user,
+        "rutinas": rutinas,
+        "socios": socios,
+        "profesores": profesores,
+        "gym_nombre": GYM_NOMBRE
+    })
+
+
+@app.post("/rutinas/crear")
+def crear_rutina(
+    socio_id: int = Form(...),
+    profesor_id: Optional[str] = Form(None),
+    nombre_rutina: str = Form(...),
+    objetivo: Optional[str] = Form(""),
+    plantilla: Optional[str] = Form("PERSONALIZADA"),
+    user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    if not user:
+        return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
+
+    profe_id = int(profesor_id) if profesor_id and profesor_id.strip() and profesor_id != "" else None
+
+    # Desactivar rutinas previas del socio
+    db.query(models.Rutina).filter(models.Rutina.socio_id == socio_id).update({"activa": False})
+
+    nueva_rutina = models.Rutina(
+        socio_id=socio_id,
+        profesor_id=profe_id,
+        nombre_rutina=nombre_rutina.strip(),
+        objetivo=objetivo.strip() if objetivo else "General",
+        activa=True
+    )
+    db.add(nueva_rutina)
+    db.commit()
+
+    # Cargar ejercicios de plantilla si se seleccionó
+    if plantilla == "HIPERTROFIA":
+        ejercicios_plantilla = [
+            ("Día 1 - Pecho y Bíceps", "Press Banca Plano con Barra", 4, "10-12", "60kg", "90s"),
+            ("Día 1 - Pecho y Bíceps", "Apertura con Mancuernas en Banco Inclinado", 3, "12", "16kg", "60s"),
+            ("Día 1 - Pecho y Bíceps", "Curl de Bíceps con Barra Z", 4, "10", "25kg", "60s"),
+            ("Día 2 - Espalda y Tríceps", "Jalón al Pecho en Polea", 4, "10-12", "55kg", "60s"),
+            ("Día 2 - Espalda y Tríceps", "Remo con Mancuerna a una mano", 4, "10", "22kg", "60s"),
+            ("Día 2 - Espalda y Tríceps", "Extensiones de Tríceps en Polea Alta", 4, "12", "30kg", "45s"),
+            ("Día 3 - Piernas y Hombros", "Sentadilla Libre / Smith", 4, "10", "70kg", "90s"),
+            ("Día 3 - Piernas y Hombros", "Prensa 45°", 4, "12", "120kg", "90s"),
+            ("Día 3 - Piernas y Hombros", "Press Militar con Mancuernas", 4, "10", "18kg", "60s"),
+        ]
+        for d, ej, s, rep, p, desc in ejercicios_plantilla:
+            db.add(models.EjercicioRutina(rutina_id=nueva_rutina.id, dia_grupo=d, ejercicio=ej, series=s, repeticiones=rep, peso_sugerido=p, descanso=desc))
+        db.commit()
+    elif plantilla == "FUERZA":
+        ejercicios_plantilla = [
+            ("Día 1 - Tren Superior", "Press de Banca Plano", 5, "5", "Pesado", "120s"),
+            ("Día 1 - Tren Superior", "Remo con Barra Pendlay", 5, "5", "Pesado", "120s"),
+            ("Día 2 - Tren Inferior", "Sentadilla Trasera con Barra", 5, "5", "Pesado", "150s"),
+            ("Día 2 - Tren Inferior", "Peso Muerto Convencional", 3, "5", "Pesado", "180s"),
+        ]
+        for d, ej, s, rep, p, desc in ejercicios_plantilla:
+            db.add(models.EjercicioRutina(rutina_id=nueva_rutina.id, dia_grupo=d, ejercicio=ej, series=s, repeticiones=rep, peso_sugerido=p, descanso=desc))
+        db.commit()
+    elif plantilla == "PERDIDA_PESO":
+        ejercicios_plantilla = [
+            ("Circuito A", "Sentadillas con Salto (Jump Squats)", 4, "15", "Sin Carga", "30s"),
+            ("Circuito A", "Flexiones de Brazo / Push-ups", 4, "12", "Corporal", "30s"),
+            ("Circuito A", "Mountain Climbers", 4, "30 segs", "Ritmo alto", "45s"),
+            ("Circuito B", "Kettlebell Swing", 4, "15", "16kg", "30s"),
+            ("Circuito B", "Burpees", 4, "10", "Máximo ritmo", "60s"),
+        ]
+        for d, ej, s, rep, p, desc in ejercicios_plantilla:
+            db.add(models.EjercicioRutina(rutina_id=nueva_rutina.id, dia_grupo=d, ejercicio=ej, series=s, repeticiones=rep, peso_sugerido=p, descanso=desc))
+        db.commit()
+
+    return RedirectResponse(url="/rutinas", status_code=status.HTTP_302_FOUND)
+
+
+@app.post("/rutinas/{rutina_id}/ejercicio/crear")
+def crear_ejercicio_rutina(
+    rutina_id: int,
+    dia_grupo: str = Form(...),
+    ejercicio: str = Form(...),
+    series: int = Form(4),
+    repeticiones: str = Form("10-12"),
+    peso_sugerido: Optional[str] = Form(""),
+    descanso: Optional[str] = Form("60s"),
+    user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    if not user:
+        raise HTTPException(status_code=401)
+    nuevo_ej = models.EjercicioRutina(
+        rutina_id=rutina_id,
+        dia_grupo=dia_grupo.strip(),
+        ejercicio=ejercicio.strip(),
+        series=series,
+        repeticiones=repeticiones.strip(),
+        peso_sugerido=peso_sugerido.strip() if peso_sugerido else "",
+        descanso=descanso.strip() if descanso else "60s",
+        completado=False
+    )
+    db.add(nuevo_ej)
+    db.commit()
+    return RedirectResponse(url="/rutinas", status_code=status.HTTP_302_FOUND)
+
+
+@app.post("/rutinas/ejercicio/eliminar/{ejercicio_id}")
+def eliminar_ejercicio_rutina(ejercicio_id: int, user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user), db: Session = Depends(get_db)):
+    if not user:
+        raise HTTPException(status_code=401)
+    ej = db.query(models.EjercicioRutina).get(ejercicio_id)
+    if ej:
+        db.delete(ej)
+        db.commit()
+    return RedirectResponse(url="/rutinas", status_code=status.HTTP_302_FOUND)
+
+
+@app.post("/rutinas/eliminar/{rutina_id}")
+def eliminar_rutina_completa(rutina_id: int, user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user), db: Session = Depends(get_db)):
+    if not user:
+        raise HTTPException(status_code=401)
+    rutina = db.query(models.Rutina).get(rutina_id)
+    if rutina:
+        db.delete(rutina)
+        db.commit()
+    return RedirectResponse(url="/rutinas", status_code=status.HTTP_302_FOUND)
+
+
+# NUEVO: Endpoint asíncrono para que el socio tilde ejercicios en tiempo real
+@app.post("/api/socio/rutina/toggle-ejercicio/{ejercicio_id}")
+def api_toggle_ejercicio_socio(ejercicio_id: int, db: Session = Depends(get_db)):
+    ej = db.query(models.EjercicioRutina).get(ejercicio_id)
+    if not ej:
+        raise HTTPException(status_code=404, detail="Ejercicio no encontrado")
+
+    ej.completado = not ej.completado
+    db.commit()
+
+    # Recalcular porcentaje de la rutina
+    total = db.query(models.EjercicioRutina).filter(models.EjercicioRutina.rutina_id == ej.rutina_id).count() or 1
+    hechos = db.query(models.EjercicioRutina).filter(models.EjercicioRutina.rutina_id == ej.rutina_id, models.EjercicioRutina.completado == True).count() or 0
+    porcentaje = int((hechos / total) * 100)
+
+    return JSONResponse({
+        "ejercicio_id": ej.id,
+        "completado": ej.completado,
+        "porcentaje": porcentaje,
+        "hechos": hechos,
+        "total": total
+    })
+
+
+# NUEVO: Reiniciar los tildes de la rutina del socio para comenzar un nuevo día/semana
+@app.post("/api/socio/rutina/reiniciar/{rutina_id}")
+def api_reiniciar_rutina_socio(rutina_id: int, db: Session = Depends(get_db)):
+    db.query(models.EjercicioRutina).filter(models.EjercicioRutina.rutina_id == rutina_id).update({"completado": False})
+    db.commit()
+    return JSONResponse({"status": "reset_ok"})
 
 
 # --- CLASES Y PROFESORES ---
@@ -567,7 +785,8 @@ def clases_profesores_view(request: Request, user: Optional[models.UsuarioSistem
     return templates.TemplateResponse(request=request, name="clases_profesores.html", context={
         "user": user,
         "profesores": profesores,
-        "actividades": actividades
+        "actividades": actividades,
+        "gym_nombre": GYM_NOMBRE
     })
 
 
@@ -652,7 +871,8 @@ def pagos_view(request: Request, user: Optional[models.UsuarioSistema] = Depends
         "user": user,
         "pagos": pagos,
         "socios": socios,
-        "planes": planes
+        "planes": planes,
+        "gym_nombre": GYM_NOMBRE
     })
 
 
@@ -778,7 +998,7 @@ def editar_plan(
     return RedirectResponse(url="/caja-pagos", status_code=status.HTTP_302_FOUND)
 
 
-# --- MÓDULO KIOSCO (CONEXIÓN OFICIAL MERCADO PAGO QR) ---
+# --- MÓDULO KIOSCO ---
 
 @app.get("/kiosco", response_class=HTMLResponse)
 def kiosco_view(request: Request, user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user), db: Session = Depends(get_db)):
@@ -798,7 +1018,8 @@ def kiosco_view(request: Request, user: Optional[models.UsuarioSistema] = Depend
     return templates.TemplateResponse(request=request, name="kiosco.html", context={
         "user": user,
         "productos": productos,
-        "ventas": ventas
+        "ventas": ventas,
+        "gym_nombre": GYM_NOMBRE
     })
 
 
@@ -819,7 +1040,6 @@ def crear_producto(
     return RedirectResponse(url="/kiosco", status_code=status.HTTP_302_FOUND)
 
 
-# Registrar venta tradicional en mostrador
 @app.post("/productos/vender")
 def vender_producto(
     producto_id: int = Form(...),
@@ -842,7 +1062,6 @@ def vender_producto(
     return RedirectResponse(url="/kiosco", status_code=status.HTTP_302_FOUND)
 
 
-# NUEVO: Generar cobro Mercado Pago con QR en pantalla para el Kiosco
 @app.post("/api/kiosco/crear-cobro-mp")
 def api_kiosco_cobro_mp(
     producto_id: int = Form(...),
@@ -896,7 +1115,7 @@ def api_kiosco_cobro_mp(
     })
 
 
-# --- BALANCE ---
+# --- BALANCE Y FINANZAS PROFESIONAL ---
 
 @app.get("/balance", response_class=HTMLResponse)
 def balance_view(request: Request, user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user), db: Session = Depends(get_db)):
@@ -928,10 +1147,22 @@ def balance_view(request: Request, user: Optional[models.UsuarioSistema] = Depen
 
     limite_proximo = hoy + timedelta(days=7)
     vencidos = db.query(models.Socio).filter(models.Socio.fecha_vencimiento_cuota < hoy).order_by(models.Socio.fecha_vencimiento_cuota.asc()).all()
-    proximos_vencer = db.query(models.Socio).filter(
+    
+    socios_proximos_raw = db.query(models.Socio).filter(
         models.Socio.fecha_vencimiento_cuota >= hoy,
         models.Socio.fecha_vencimiento_cuota <= limite_proximo
     ).order_by(models.Socio.fecha_vencimiento_cuota.asc()).all()
+
+    proximos_vencer = []
+    for s in socios_proximos_raw:
+        cel_clean = "".join([c for c in s.celular if c.isdigit()])
+        venc_str = s.fecha_vencimiento_cuota.strftime('%d/%m/%Y')
+        plan_nom = s.plan.nombre if s.plan else "tu cuota"
+        precio_str = f"${s.plan.precio:.2f}" if s.plan else ""
+        link_socio = f"{APP_PUBLIC_URL}/socio/credencial/{s.id}"
+        msg = f"Hola {s.nombre}! Te recordamos de {GYM_NOMBRE} que tu abono de {plan_nom} ({precio_str}) vence el {venc_str}. Puedes renovarlo online para evitar demoras en el molinete ingresando aquí: {link_socio}"
+        wa_url = f"https://wa.me/{cel_clean}?text={urllib.parse.quote(msg)}" if cel_clean else f"https://wa.me/?text={urllib.parse.quote(msg)}"
+        proximos_vencer.append({"socio": s, "whatsapp_url": wa_url})
 
     ultimos_pagos_cuotas = db.query(models.Pago).order_by(models.Pago.id.desc()).limit(10).all()
     ultimas_ventas_kiosco = db.query(models.VentaProducto).order_by(models.VentaProducto.id.desc()).limit(10).all()
@@ -949,7 +1180,8 @@ def balance_view(request: Request, user: Optional[models.UsuarioSistema] = Depen
         "vencidos": vencidos,
         "proximos_vencer": proximos_vencer,
         "ultimos_pagos_cuotas": ultimos_pagos_cuotas,
-        "ultimas_ventas_kiosco": ultimas_ventas_kiosco
+        "ultimas_ventas_kiosco": ultimas_ventas_kiosco,
+        "gym_nombre": GYM_NOMBRE
     })
 
 
@@ -1008,6 +1240,25 @@ def exportar_socios_csv(user: Optional[models.UsuarioSistema] = Depends(auth.get
     return Response(content=output.getvalue(), media_type="text/csv", headers={"Content-Disposition": "attachment; filename=padron_socios.csv"})
 
 
+@app.get("/exportar/accesos-csv")
+def exportar_accesos_csv(user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user), db: Session = Depends(get_db)):
+    if not user:
+        raise HTTPException(status_code=401)
+    
+    accesos = db.query(models.RegistroAcceso).options(joinedload(models.RegistroAcceso.socio)).order_by(models.RegistroAcceso.fecha_hora.desc()).all()
+    output = io.StringIO()
+    writer = csv.writer(output, delimiter=";")
+    writer.writerow(["ID", "Fecha", "Hora", "DNI Socio", "Nombre Socio", "Resultado", "Motivo"])
+    for a in accesos:
+        dni = a.socio.dni if a.socio else "N/A"
+        nombre = f"{a.socio.nombre} {a.socio.apellido}" if a.socio else "Eliminado"
+        fecha_str = a.fecha_hora.strftime("%Y-%m-%d") if a.fecha_hora else "-"
+        hora_str = a.fecha_hora.strftime("%H:%M:%S") if a.fecha_hora else "-"
+        writer.writerow([a.id, fecha_str, hora_str, dni, nombre, a.resultado, a.motivo])
+    
+    return Response(content=output.getvalue(), media_type="text/csv", headers={"Content-Disposition": "attachment; filename=auditoria_accesos_molinete.csv"})
+
+
 # --- FACTURA ARCA DESCARGA ---
 
 @app.get("/factura/descargar/{factura_id}")
@@ -1040,7 +1291,7 @@ def descargar_factura_pdf(factura_id: int, db: Session = Depends(get_db)):
     )
 
 
-# --- CREDENCIAL DIGITAL ---
+# --- CREDENCIAL DIGITAL (CON SEGUIMIENTO DE RUTINAS Y FACTURAS) ---
 
 @app.get("/socio/credencial/{socio_id}", response_class=HTMLResponse)
 def socio_credencial_view(socio_id: int, request: Request, db: Session = Depends(get_db)):
@@ -1064,7 +1315,7 @@ def socio_credencial_view(socio_id: int, request: Request, db: Session = Depends
             preference_data = {
                 "items": [
                     {
-                        "title": f"Abono {plan_asignado.nombre} - Socio {socio.nombre} {socio.apellido}",
+                        "title": f"Abono {plan_asignado.nombre} - {socio.nombre} {socio.apellido}",
                         "quantity": 1,
                         "unit_price": float(plan_asignado.precio),
                         "currency_id": "ARS"
@@ -1090,7 +1341,18 @@ def socio_credencial_view(socio_id: int, request: Request, db: Session = Depends
         except Exception:
             pass
 
-    ultima_factura = db.query(models.Factura).filter(models.Factura.socio_id == socio.id).order_by(models.Factura.id.desc()).first()
+    facturas = db.query(models.Factura).filter(models.Factura.socio_id == socio.id).order_by(models.Factura.id.desc()).all() or []
+
+    # Cargar rutina activa del socio con sus ejercicios
+    rutina_activa = db.query(models.Rutina).options(joinedload(models.Rutina.ejercicios)).filter(
+        models.Rutina.socio_id == socio.id,
+        models.Rutina.activa == True
+    ).first()
+
+    porcentaje_rutina = 0
+    if rutina_activa and len(rutina_activa.ejercicios) > 0:
+        completados = sum(1 for e in rutina_activa.ejercicios if e.completado)
+        porcentaje_rutina = int((completados / len(rutina_activa.ejercicios)) * 100)
 
     return templates.TemplateResponse(request=request, name="socio_credencial.html", context={
         "socio": socio,
@@ -1101,11 +1363,14 @@ def socio_credencial_view(socio_id: int, request: Request, db: Session = Depends
         "permiso_especial": permiso_especial,
         "qr_image": f"data:image/png;base64,{qr_b64}",
         "init_point_mp": init_point_mp,
-        "ultima_factura": ultima_factura
+        "facturas": facturas,
+        "rutina": rutina_activa,
+        "porcentaje_rutina": porcentaje_rutina,
+        "gym_nombre": GYM_NOMBRE
     })
 
 
-# --- WEBHOOK MP (SOPORTA PAGOS DE CUOTAS Y PAGOS DE KIOSCO) ---
+# --- WEBHOOK MP ---
 
 @app.post("/api/pagos/webhook")
 async def mercadopago_webhook(request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
@@ -1129,13 +1394,11 @@ async def mercadopago_webhook(request: Request, background_tasks: BackgroundTask
                 monto = float(resp.get("transaction_amount", 0.0))
                 payment_id_str = str(data_id)
 
-                # 1. Pago de Kiosco vía Mercado Pago
                 if ext_ref.startswith("KIOSCO-"):
                     parts = ext_ref.split("-")
                     producto_id = int(parts[1])
                     cantidad = int(parts[2])
 
-                    # Evitar registrar doble
                     venta_existente = db.query(models.VentaProducto).filter_by(metodo_pago=f"MP-{payment_id_str}").first()
                     if not venta_existente:
                         prod = db.query(models.Producto).get(producto_id)
@@ -1149,10 +1412,8 @@ async def mercadopago_webhook(request: Request, background_tasks: BackgroundTask
                             )
                             db.add(nueva_venta)
                             db.commit()
-                            print(f"[KIOSCO MP] Venta de {prod.nombre} (x{cantidad}) confirmada.")
                     return JSONResponse({"status": "kiosco_processed"})
 
-                # 2. Pago de Cuotas de Socios
                 pago_existente = db.query(models.Pago).filter_by(external_payment_id=payment_id_str).first()
                 if pago_existente:
                     return JSONResponse({"status": "already_processed"})
@@ -1196,7 +1457,7 @@ async def mercadopago_webhook(request: Request, background_tasks: BackgroundTask
 def molinete_view(request: Request, user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user)):
     if not user:
         return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
-    return templates.TemplateResponse(request=request, name="molinete.html", context={"user": user})
+    return templates.TemplateResponse(request=request, name="molinete.html", context={"user": user, "gym_nombre": GYM_NOMBRE})
 
 
 @app.post("/api/molinete/validar")

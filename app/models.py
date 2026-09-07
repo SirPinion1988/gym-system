@@ -33,6 +33,7 @@ class Profesor(Base):
     tipo_sueldo = Column(String(30), default="MENSUAL")
     activo = Column(Boolean, default=True)
     clases = relationship("Actividad", back_populates="profesor")
+    rutinas_creadas = relationship("Rutina", back_populates="profesor")
 
 class Actividad(Base):
     __tablename__ = "actividades"
@@ -54,34 +55,53 @@ class Socio(Base):
     edad = Column(Integer, nullable=False)
     celular = Column(String(30), nullable=False)
     email = Column(String(120), unique=True, index=True, nullable=False)
-    
-    # Foto de Perfil en Base64
     foto_base64 = Column(Text, nullable=True)
-
-    # Apto Médico
     apto_medico_realizacion = Column(Date, nullable=True)
     apto_medico_vencimiento = Column(Date, nullable=True)
-    
     qr_token = Column(String(100), unique=True, index=True, nullable=False)
     estado_cuota = Column(String(20), default="ACTIVO")
     fecha_vencimiento_cuota = Column(Date, nullable=True)
     plan_id = Column(Integer, ForeignKey("planes.id"), nullable=True)
-    
-    # Control Manual y Prórrogas
     bloqueado_manual = Column(Boolean, default=False)
     habilitacion_manual_hasta = Column(Date, nullable=True)
-    
-    # Tarjeta / Débito Automático
     tarjeta_tokenizada = Column(Boolean, default=False)
     tarjeta_marca = Column(String(30), nullable=True)
     tarjeta_ultimos4 = Column(String(4), nullable=True)
-    
     creado_en = Column(DateTime, default=datetime.utcnow)
 
     plan = relationship("Plan")
     pagos = relationship("Pago", back_populates="socio")
     facturas = relationship("Factura", back_populates="socio")
     accesos = relationship("RegistroAcceso", back_populates="socio")
+    rutinas = relationship("Rutina", back_populates="socio", cascade="all, delete-orphan")
+
+class Rutina(Base):
+    __tablename__ = "rutinas"
+    id = Column(Integer, primary_key=True, index=True)
+    socio_id = Column(Integer, ForeignKey("socios.id"), nullable=False)
+    profesor_id = Column(Integer, ForeignKey("profesores.id"), nullable=True)
+    nombre_rutina = Column(String(120), nullable=False)
+    objetivo = Column(String(150), nullable=True)
+    activa = Column(Boolean, default=True)
+    creado_en = Column(DateTime, default=datetime.utcnow)
+
+    socio = relationship("Socio", back_populates="rutinas")
+    profesor = relationship("Profesor", back_populates="rutinas_creadas")
+    ejercicios = relationship("EjercicioRutina", back_populates="rutina", cascade="all, delete-orphan")
+
+class EjercicioRutina(Base):
+    __tablename__ = "ejercicios_rutina"
+    id = Column(Integer, primary_key=True, index=True)
+    rutina_id = Column(Integer, ForeignKey("rutinas.id"), nullable=False)
+    dia_grupo = Column(String(50), nullable=False)
+    ejercicio = Column(String(120), nullable=False)
+    series = Column(Integer, default=4)
+    repeticiones = Column(String(30), default="10-12")
+    peso_sugerido = Column(String(30), default="")
+    descanso = Column(String(30), default="60s")
+    completado = Column(Boolean, default=False)
+
+    rutina = relationship("Rutina", back_populates="ejercicios")
 
 class Pago(Base):
     __tablename__ = "pagos"

@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Armado de Rutinas | {{ gym_nombre }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
+    <!-- Navbar -->
+    <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between sticky top-0 z-40">
+        <div class="flex items-center space-x-6">
+            <div class="flex items-center space-x-2">
+                <div class="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center font-black text-emerald-400 text-sm">
+                    GP
+                </div>
+                <span class="text-xl font-bold tracking-tight text-white">{{ gym_nombre }}</span>
+            </div>
+            <nav class="hidden lg:flex space-x-4 text-sm font-medium">
+                <a href="/dashboard" class="text-slate-400 hover:text-white transition">Dashboard</a>
+                <a href="/socios" class="text-slate-400 hover:text-white transition">Socios</a>
+                <a href="/rutinas" class="text-emerald-400 border-b-2 border-emerald-500 pb-1">Rutinas</a>
+                <a href="/clases-profesores" class="text-slate-400 hover:text-white transition">Clases y Profes</a>
+                <a href="/caja-pagos" class="text-slate-400 hover:text-white transition">Caja / Cuotas</a>
+                <a href="/kiosco" class="text-slate-400 hover:text-white transition">Kiosco</a>
+                <a href="/balance" class="text-slate-400 hover:text-white transition">Balance & Reportes</a>
+                {% if user.rol == 'ADMIN' %}
+                <a href="/usuarios" class="text-slate-400 hover:text-white transition">Usuarios</a>
+                {% endif %}
+                <a href="/molinete" class="text-slate-400 hover:text-white transition">Molinete</a>
+            </nav>
+        </div>
+        <a href="/logout" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg text-rose-400 transition font-semibold">Cerrar Sesión</a>
+    </header>
+
+    <main class="flex-1 p-6 max-w-7xl mx-auto w-full space-y-6">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+                <h1 class="text-2xl font-black text-white">Armado y Gestión de Rutinas</h1>
+                <p class="text-xs text-slate-400">Asigna planes de entrenamiento personalizados o plantillas preestablecidas a cada socio.</p>
+            </div>
+            <button onclick="document.getElementById('modal-crear-rutina').classList.remove('hidden')" class="bg-emerald-500 hover:bg-emerald-600 px-4 py-2.5 rounded-xl text-xs font-bold text-white transition flex items-center gap-2 shadow-lg shadow-emerald-500/20">
+                <span>+</span> Asignar Nueva Rutina
+            </button>
+        </div>
+
+        <!-- LISTADO DE RUTINAS ACTIVAS POR SOCIO -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% for r in rutinas %}
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col justify-between space-y-4 relative">
+                <div>
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-indigo-950 text-indigo-400 border border-indigo-800">
+                            {{ r.objetivo or 'Acondicionamiento' }}
+                        </span>
+                        {% if r.activa %}
+                            <span class="text-[10px] font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800 px-2 py-0.5 rounded-full">Activa</span>
+                        {% else %}
+                            <span class="text-[10px] font-bold text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full">Pausada</span>
+                        {% endif %}
+                    </div>
+                    <h3 class="text-lg font-black text-white">{{ r.nombre_rutina }}</h3>
+                    <p class="text-xs font-semibold text-emerald-400 mt-0.5">Socio: {{ r.socio.nombre }} {{ r.socio.apellido }}</p>
+                    <p class="text-[11px] text-slate-500">DNI: {{ r.socio.dni }} &bull; Creado por: {{ r.profesor.nombre if r.profesor else 'Gimnasio' }}</p>
+
+                    <!-- Lista resumida de ejercicios -->
+                    <div class="mt-3 pt-3 border-t border-slate-800/80 space-y-1.5 max-h-48 overflow-y-auto">
+                        {% for ej in r.ejercicios %}
+                        <div class="flex justify-between items-center text-xs bg-slate-950/60 p-2 rounded-lg border border-slate-800/60">
+                            <div>
+                                <span class="text-[10px] text-indigo-400 font-bold block">{{ ej.dia_grupo }}</span>
+                                <span class="font-medium text-white">{{ ej.ejercicio }}</span>
+                                <span class="text-[10px] text-slate-400 block">{{ ej.series }}x{{ ej.repeticiones }} (Desc: {{ ej.descanso }})</span>
+                            </div>
+                            <form action="/rutinas/ejercicio/eliminar/{{ ej.id }}" method="POST" onsubmit="return confirm('¿Eliminar este ejercicio?');">
+                                <button type="submit" class="text-slate-500 hover:text-rose-400 text-xs px-1 py-0.5">&times;</button>
+                            </form>
+                        </div>
+                        {% else %}
+                        <p class="text-xs text-slate-500 italic">Sin ejercicios aún. Agrega el primero abajo.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="pt-2 border-t border-slate-800 space-y-2">
+                    <button onclick="abrirModalAgregarEjercicio({{ r.id }}, '{{ r.nombre_rutina }}', '{{ r.socio.nombre }} {{ r.socio.apellido }}')" class="w-full bg-slate-800 hover:bg-slate-700 text-indigo-300 font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1.5">
+                        <span>+</span> Agregar Ejercicio a esta Rutina
+                    </button>
+                    <form action="/rutinas/eliminar/{{ r.id }}" method="POST" onsubmit="return confirm('¿Seguro que deseas eliminar esta rutina completa?');">
+                        <button type="submit" class="w-full text-center text-[11px] text-rose-400/80 hover:text-rose-400 transition py-1">
+                            Eliminar Rutina
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% else %}
+            <div class="col-span-full bg-slate-900 border border-slate-800 rounded-2xl p-10 text-center">
+                <p class="text-slate-400 text-sm">No hay rutinas creadas todavía. Presiona <b>"+ Asignar Nueva Rutina"</b> para comenzar.</p>
+            </div>
+            {% endfor %}
+        </div>
+    </main>
+
+    <!-- MODAL 1: Crear Rutina (Personalizada o Plantilla) -->
+    <div id="modal-crear-rutina" class="hidden fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-4">
+            <div class="flex justify-between items-center">
+                <h3 class="font-bold text-lg text-white">Asignar Rutina al Socio</h3>
+                <button onclick="document.getElementById('modal-crear-rutina').classList.add('hidden')" class="text-slate-400 hover:text-white text-xl">&times;</button>
+            </div>
+            <form action="/rutinas/crear" method="POST" class="space-y-3">
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Socio</label>
+                    <select name="socio_id" required class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-sm text-white focus:outline-none focus:border-emerald-500">
+                        <option value="">Seleccionar Socio...</option>
+                        {% for s in socios %}
+                        <option value="{{ s.id }}">{{ s.nombre }} {{ s.apellido }} (DNI: {{ s.dni }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Profesor Responsable</label>
+                    <select name="profesor_id" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-sm text-white focus:outline-none focus:border-emerald-500">
+                        <option value="">Sin Profesor específico</option>
+                        {% for p in profesores %}
+                        <option value="{{ p.id }}">{{ p.nombre }} {{ p.apellido }} ({{ p.especialidad }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Cargar Plantilla Preestablecida (Opcional)</label>
+                    <select name="plantilla" onchange="aplicarPlantilla(this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-sm text-indigo-300 focus:outline-none focus:border-indigo-500">
+                        <option value="PERSONALIZADA">En blanco (Personalizada)</option>
+                        <option value="HIPERTROFIA">Plantilla: Hipertrofia 3 Días (Pecho, Espalda, Piernas)</option>
+                        <option value="FUERZA">Plantilla: Fuerza Básica 5x5</option>
+                        <option value="PERDIDA_PESO">Plantilla: Full Body + Funcional (Pérdida de Grasa)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Nombre del Plan</label>
+                    <input type="text" id="input-nombre-rutina" name="nombre_rutina" required placeholder="Ej: Rutina de Definición Muscular" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-sm text-white focus:outline-none focus:border-emerald-500">
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Objetivo Principal</label>
+                    <input type="text" id="input-objetivo-rutina" name="objetivo" placeholder="Ej: Aumento de masa magra" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-sm text-white focus:outline-none focus:border-emerald-500">
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="document.getElementById('modal-crear-rutina').classList.add('hidden')" class="px-4 py-2 bg-slate-800 rounded-xl text-xs font-semibold hover:bg-slate-700">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 rounded-xl text-xs font-bold text-white shadow-lg shadow-emerald-500/20">Crear y Asignar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 2: Agregar Ejercicio Manual -->
+    <div id="modal-agregar-ejercicio" class="hidden fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-4">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h3 class="font-bold text-lg text-white">Nuevo Ejercicio</h3>
+                    <p id="sub-modal-ejercicio" class="text-xs text-slate-400">-</p>
+                </div>
+                <button onclick="document.getElementById('modal-agregar-ejercicio').classList.add('hidden')" class="text-slate-400 hover:text-white text-xl">&times;</button>
+            </div>
+            <form id="form-nuevo-ejercicio" action="" method="POST" class="space-y-3">
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Día / Grupo Muscular</label>
+                    <input type="text" name="dia_grupo" required placeholder="Ej: Día 1 - Pecho y Tríceps" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-sm text-white focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Nombre del Ejercicio</label>
+                    <input type="text" name="ejercicio" required placeholder="Ej: Press de Banca Plano con Barra" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-sm text-white focus:outline-none focus:border-indigo-500">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Series</label>
+                        <input type="number" name="series" value="4" required class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Repeticiones</label>
+                        <input type="text" name="repeticiones" value="10-12" required class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Peso Sugerido / Carga</label>
+                        <input type="text" name="peso_sugerido" placeholder="Ej: 20kg por lado" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Descanso</label>
+                        <input type="text" name="descanso" value="60s" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="document.getElementById('modal-agregar-ejercicio').classList.add('hidden')" class="px-4 py-2 bg-slate-800 rounded-xl text-xs font-semibold hover:bg-slate-700">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-xs font-bold text-white shadow-lg shadow-indigo-600/20">Agregar Ejercicio</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function aplicarPlantilla(val) {
+            const nom = document.getElementById('input-nombre-rutina');
+            const obj = document.getElementById('input-objetivo-rutina');
+            if (val === 'HIPERTROFIA') {
+                nom.value = 'Rutina Hipertrofia 3 Días';
+                obj.value = 'Ganancia de masa muscular y volumen';
+            } else if (val === 'FUERZA') {
+                nom.value = 'Rutina de Fuerza 5x5';
+                obj.value = 'Desarrollo de fuerza básica';
+            } else if (val === 'PERDIDA_PESO') {
+                nom.value = 'Plan Funcional Full Body';
+                obj.value = 'Quema de calorías y resistencia';
+            } else {
+                nom.value = '';
+                obj.value = '';
+            }
+        }
+
+        function abrirModalAgregarEjercicio(rutinaId, nombreRutina, socioNombre) {
+            const form = document.getElementById('form-nuevo-ejercicio');
+            form.action = '/rutinas/' + rutinaId + '/ejercicio/crear';
+            document.getElementById('sub-modal-ejercicio').innerText = nombreRutina + ' (' + socioNombre + ')';
+            document.getElementById('modal-agregar-ejercicio').classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>

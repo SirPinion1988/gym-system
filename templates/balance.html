@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Balance y Finanzas | GymPro</title>
+    <title>Balance y Finanzas | {{ gym_nombre }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
@@ -14,7 +14,7 @@
                 <div class="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center font-black text-emerald-400 text-sm">
                     GP
                 </div>
-                <span class="text-xl font-bold tracking-tight text-white">Gym<span class="text-emerald-400">Pro</span></span>
+                <span class="text-xl font-bold tracking-tight text-white">{{ gym_nombre }}</span>
             </div>
             <nav class="hidden lg:flex space-x-4 text-sm font-medium">
                 <a href="/dashboard" class="text-slate-400 hover:text-white transition">Dashboard</a>
@@ -51,6 +51,7 @@
             </div>
         </div>
 
+        <!-- Tarjetas del Estado Financiero -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
                 <span class="text-xs text-slate-400 uppercase font-bold tracking-wider">Ingresos Hoy</span>
@@ -85,6 +86,7 @@
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- PRÓXIMOS VENCIMIENTOS CON RECORDATORIO POR WHATSAPP -->
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-lg font-bold text-amber-400 flex items-center gap-2">
@@ -99,10 +101,12 @@
                                 <th class="p-3">Socio</th>
                                 <th class="p-3">Plan</th>
                                 <th class="p-3 text-right">Vencimiento</th>
+                                <th class="p-3 text-right">Aviso</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-800">
-                            {% for s in proximos_vencer %}
+                            {% for item in proximos_vencer %}
+                            {% set s = item.socio %}
                             <tr class="hover:bg-slate-800/30 transition">
                                 <td class="p-3">
                                     <div class="font-semibold text-white">{{ s.nombre }} {{ s.apellido }}</div>
@@ -112,15 +116,21 @@
                                 <td class="p-3 text-right font-mono font-bold text-amber-400 text-xs">
                                     {{ s.fecha_vencimiento_cuota.strftime('%d/%m/%Y') }}
                                 </td>
+                                <td class="p-3 text-right">
+                                    <a href="{{ item.whatsapp_url }}" target="_blank" class="bg-emerald-950/70 hover:bg-emerald-900 border border-emerald-800 text-emerald-400 text-xs px-2.5 py-1 rounded-lg font-bold transition inline-flex items-center gap-1 shadow-sm">
+                                        <span>💬</span> Recordar
+                                    </a>
+                                </td>
                             </tr>
                             {% else %}
-                            <tr><td colspan="3" class="p-4 text-center text-slate-500 text-xs">No hay vencimientos inmediatos.</td></tr>
+                            <tr><td colspan="4" class="p-4 text-center text-slate-500 text-xs">No hay vencimientos inmediatos en los próximos 7 días.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
             </div>
 
+            <!-- CUOTAS VENCIDAS -->
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-lg font-bold text-rose-400 flex items-center gap-2">
