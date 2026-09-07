@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 class="text-2xl font-bold mb-2">Simulador de Molinete / Lector de Acceso</h2>
+<p class="text-sm text-slate-400 mb-6">Conecta el escáner USB o pega el código del socio para simular la apertura del molinete.</p>
+
+<div class="max-w-xl bg-slate-950 border border-slate-800 p-6 rounded-2xl">
+    <form id="form-molinete" class="space-y-4">
+        <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Escanear Token / QR</label>
+            <input type="text" id="input-token" autofocus placeholder="Pasa el lector aquí..." class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:outline-none focus:border-emerald-500 font-mono">
+        </div>
+        <button type="submit" class="w-full bg-sky-500 hover:bg-sky-600 font-bold py-3 rounded-lg transition">Validar Paso</button>
+    </form>
+
+    <!-- Indicador de Apertura -->
+    <div id="resultado" class="hidden mt-6 p-6 rounded-xl text-center border">
+        <div id="res-icono" class="text-4xl mb-2"></div>
+        <h3 id="res-titulo" class="text-xl font-bold"></h3>
+        <p id="res-motivo" class="text-sm text-slate-300 mt-1"></p>
+    </div>
+</div>
+
+<script>
+document.getElementById('form-molinete').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const token = document.getElementById('input-token').value;
+    if (!token) return;
+
+    const formData = new FormData();
+    formData.append('token', token);
+
+    const res = await fetch('/api/molinete/validar', { method: 'POST', body: formData });
+    const data = await res.json();
+
+    const box = document.getElementById('resultado');
+    const ico = document.getElementById('res-icono');
+    const tit = document.getElementById('res-titulo');
+    const mot = document.getElementById('res-motivo');
+
+    box.classList.remove('hidden', 'border-emerald-500', 'border-red-500', 'border-yellow-500', 'bg-emerald-500/10', 'bg-red-500/10', 'bg-yellow-500/10');
+
+    if (data.abrir) {
+        box.classList.add('border-emerald-500', 'bg-emerald-500/10');
+        ico.innerText = '🔓';
+        tit.innerText = 'MOLINETE LIBERADO';
+        tit.className = 'text-xl font-bold text-emerald-400';
+        mot.innerText = `${data.socio} - ${data.motivo}`;
+    } else {
+        box.classList.add('border-red-500', 'bg-red-500/10');
+        ico.innerText = '🔒';
+        tit.innerText = 'ACCESO DENEGADO';
+        tit.className = 'text-xl font-bold text-red-400';
+        mot.innerText = `${data.socio || ''} - Motivo: ${data.motivo}`;
+    }
+
+    document.getElementById('input-token').value = '';
+    document.getElementById('input-token').focus();
+});
+</script>
+{% endblock %}

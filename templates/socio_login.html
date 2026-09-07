@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acceso de Socios | Credencial Digital</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 flex items-center justify-center min-h-screen p-4">
+    <div class="bg-slate-900 border border-slate-800 p-8 rounded-2xl w-full max-w-sm shadow-2xl text-center">
+        <img src="/static/img/logo.png" alt="Logo" class="w-16 h-16 mx-auto mb-3 object-contain" onerror="this.src='https://via.placeholder.com/60?text=GYM'">
+        <h1 class="text-xl font-bold text-white">Mi Credencial Digital</h1>
+        <p class="text-xs text-slate-400 mb-6">Ingresa tu DNI y Correo para ver tu QR de acceso</p>
+
+        {% if error %}
+        <div class="bg-red-500/10 border border-red-500 text-red-400 p-3 rounded-lg text-xs mb-4 text-center">
+            {{ error }}
+        </div>
+        {% endif %}
+
+        <form action="/socio/login" method="POST" class="space-y-4 text-left">
+            <div>
+                <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">DNI</label>
+                <input type="text" name="dni" required placeholder="Ej: 38123456" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white focus:outline-none focus:border-emerald-500">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Correo Electrónico</label>
+                <input type="email" name="email" required placeholder="tu@email.com" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white focus:outline-none focus:border-emerald-500">
+            </div>
+            <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-600 font-bold py-3 rounded-lg text-white transition text-sm">
+                Acceder a mi QR
+            </button>
+        </form>
+    </div>
+</body>
+</html>

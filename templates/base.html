@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gym Management System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body class="bg-slate-900 text-slate-100 flex min-h-screen">
+    {% if user %}
+    <!-- Sidebar -->
+    <aside class="w-64 bg-slate-950 p-6 flex flex-col justify-between border-r border-slate-800">
+        <div>
+            <div class="flex items-center space-x-3 mb-8">
+                <img src="/static/img/logo.png" alt="Logo" class="w-10 h-10 object-contain" onerror="this.src='https://via.placeholder.com/40?text=GYM'">
+                <div>
+                    <h1 class="font-bold text-lg leading-none">GYM PRO</h1>
+                    <span class="text-xs text-emerald-400 font-semibold">{{ user.rol }}</span>
+                </div>
+            </div>
+            <nav class="space-y-2">
+                <a href="/dashboard" class="block px-4 py-2.5 rounded-lg hover:bg-slate-800 transition">📊 Dashboard</a>
+                <a href="/socios" class="block px-4 py-2.5 rounded-lg hover:bg-slate-800 transition">🏋️ Socios y QR</a>
+                <a href="/molinete" class="block px-4 py-2.5 rounded-lg hover:bg-slate-800 transition">🚧 Simulador Molinete</a>
+            </nav>
+        </div>
+        <div>
+            <div class="text-xs text-slate-400 mb-2">Conectado: <b>{{ user.nombre }}</b></div>
+            <a href="/logout" class="block text-center py-2 bg-red-600/20 text-red-400 rounded-lg hover:bg-red-600/30 transition text-sm">Cerrar Sesión</a>
+        </div>
+    </aside>
+    {% endif %}
+
+    <!-- Contenido Principal -->
+    <main class="flex-1 p-8 overflow-y-auto">
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

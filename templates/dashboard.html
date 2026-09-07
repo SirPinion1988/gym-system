@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 class="text-2xl font-bold mb-6">Panel General de Control</h2>
+
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <div class="bg-slate-950 border border-slate-800 p-5 rounded-xl">
+        <span class="text-slate-400 text-sm">Total Socios</span>
+        <div class="text-3xl font-black text-white mt-1">{{ total_socios }}</div>
+    </div>
+    <div class="bg-slate-950 border border-slate-800 p-5 rounded-xl">
+        <span class="text-slate-400 text-sm">Socios con Cuota Activa</span>
+        <div class="text-3xl font-black text-emerald-400 mt-1">{{ socios_activos }}</div>
+    </div>
+    <div class="bg-slate-950 border border-slate-800 p-5 rounded-xl">
+        <span class="text-slate-400 text-sm">Actividades Registradas</span>
+        <div class="text-3xl font-black text-sky-400 mt-1">{{ total_actividades }}</div>
+    </div>
+</div>
+
+<h3 class="text-lg font-bold mb-4">Últimos Pasos por el Molinete</h3>
+<div class="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden">
+    <table class="w-full text-left text-sm">
+        <thead class="bg-slate-900 text-slate-400 border-b border-slate-800">
+            <tr>
+                <th class="p-3">Fecha y Hora</th>
+                <th class="p-3">Socio ID</th>
+                <th class="p-3">Resultado</th>
+                <th class="p-3">Detalle</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-800">
+            {% for acc in ultimos_accesos %}
+            <tr>
+                <td class="p-3">{{ acc.fecha_hora.strftime('%d/%m/%Y %H:%M:%S') }}</td>
+                <td class="p-3">Socio #{{ acc.socio_id }}</td>
+                <td class="p-3">
+                    <span class="px-2 py-0.5 rounded text-xs font-bold {% if acc.resultado == 'PERMITIDO' %}bg-emerald-500/20 text-emerald-400{% else %}bg-red-500/20 text-red-400{% endif %}">
+                        {{ acc.resultado }}
+                    </span>
+                </td>
+                <td class="p-3 text-slate-400">{{ acc.motivo }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="4" class="p-4 text-center text-slate-500">Aún no hay registros de acceso.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
