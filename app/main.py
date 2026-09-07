@@ -65,10 +65,9 @@ def startup_db_init():
             db.add(admin_user)
             db.commit()
 
-        # Crear planes por defecto si no existen
         if db.query(models.Plan).count() == 0:
             db.add_all([
-                models.Plan(nombre="Pase Libre Mensual", precio=25000.0, dias_duracion=30, descripcion="Acceso total a sala de musculación y clases."),
+                models.Plan(nombre="Pase Libre Mensual", precio=25000.0, dias_duracion=30, descripcion="Acceso libre a sala de musculación y clases."),
                 models.Plan(nombre="3 Veces por Semana", precio=18000.0, dias_duracion=30, descripcion="Hasta 3 accesos semanales.")
             ])
             db.commit()
@@ -110,7 +109,7 @@ def logout():
     resp.delete_cookie("access_token")
     return resp
 
-# --- DASHBOARD GENERAL ---
+# --- DASHBOARD ---
 
 @app.get("/dashboard", response_class=HTMLResponse)
 def dashboard(request: Request, user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user), db: Session = Depends(get_db)):
@@ -132,7 +131,7 @@ def dashboard(request: Request, user: Optional[models.UsuarioSistema] = Depends(
         "ultimos_accesos": ultimos_accesos
     })
 
-# --- MÓDULO SOCIOS ---
+# --- GESTIÓN DE SOCIOS Y ASIGNACIÓN DE PLANES ---
 
 @app.get("/socios", response_class=HTMLResponse)
 def socios_view(request: Request, user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user), db: Session = Depends(get_db)):
@@ -140,7 +139,11 @@ def socios_view(request: Request, user: Optional[models.UsuarioSistema] = Depend
         return RedirectResponse(url="/login")
     socios = db.query(models.Socio).order_by(models.Socio.id.desc()).all()
     planes = db.query(models.Plan).filter(models.Plan.activo == True).all()
-    return templates.TemplateResponse(request=request, name="socios.html", context={"user": user, "socios": socios, "planes": planes})
+    return templates.TemplateResponse(request=request, name="socios.html", context={
+        "user": user,
+        "socios": socios,
+        "planes": planes
+    })
 
 @app.post("/socios/crear")
 def crear_socio(
@@ -179,6 +182,23 @@ def crear_socio(
         bloqueado_manual=False
     )
     db.add(nuevo_socio)
+    db.commit()
+    return RedirectResponse(url="/socios", status_code=status.HTTP_302_FOUND)
+
+@app.post("/socios/asignar-plan/{socio_id}")
+def asignar_plan_socio(
+    socio_id: int,
+    plan_id: int = Form(...),
+    user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    if not user:
+        raise HTTPException(status_code=401)
+    socio = db.query(models.Socio).get(socio_id)
+    if not socio:
+        raise HTTPException(status_code=404)
+
+    socio.plan_id = plan_id
     db.commit()
     return RedirectResponse(url="/socios", status_code=status.HTTP_302_FOUND)
 
@@ -269,7 +289,7 @@ def crear_clase(
     db.commit()
     return RedirectResponse(url="/clases-profesores", status_code=status.HTTP_302_FOUND)
 
-# --- MÓDULO PLANES Y COBROS (PAGOS) ---
+# --- MÓDULO PLANES Y PAGOS (CAJA) ---
 
 @app.get("/caja-pagos", response_class=HTMLResponse)
 def pagos_view(request: Request, user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user), db: Session = Depends(get_db)):
@@ -300,7 +320,6 @@ def registrar_pago(
     if not socio or not plan:
         raise HTTPException(status_code=404)
 
-    # Renovar cuota del socio 30 días a partir de hoy o sumar días si está vigente
     hoy = date.today()
     if socio.fecha_vencimiento_cuota and socio.fecha_vencimiento_cuota > hoy:
         socio.fecha_vencimiento_cuota = socio.fecha_vencimiento_cuota + timedelta(days=plan.dias_duracion)
@@ -336,7 +355,7 @@ def crear_plan(
     db.commit()
     return RedirectResponse(url="/caja-pagos", status_code=status.HTTP_302_FOUND)
 
-# --- MÓDULO DE PRODUCTOS / KIOSCO ---
+# --- MÓDULO PRODUCTOS / KIOSCO ---
 
 @app.get("/kiosco", response_class=HTMLResponse)
 def kiosco_view(request: Request, user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user), db: Session = Depends(get_db)):
@@ -417,15 +436,58 @@ def socio_credencial_view(socio_id: int, request: Request, db: Session = Depends
     habilitado = cuota_al_dia and apto_al_dia and not socio.bloqueado_manual
     qr_b64 = generar_qr_base64(socio.qr_token)
 
+    plan_asignado = socio.plan
+    if not plan_asignado:
+        # Si aún no tiene plan, toma el primer plan activo como referencia
+        plan_asignado = db.query(models.Plan).filter(models.Plan.activo == True).first()
+
     return templates.TemplateResponse(request=request, name="socio_credencial.html", context={
         "socio": socio,
+        "plan": plan_asignado,
         "habilitado": habilitado,
         "cuota_al_dia": cuota_al_dia,
         "apto_al_dia": apto_al_dia,
         "qr_image": f"data:image/png;base64,{qr_b64}"
     })
 
-# --- MOLINETE Y CONTROL DE ACCESO ---
+# --- PAGO DE CUOTA ONLINE POR EL SOCIO ---
+
+@app.post("/socio/pagar-cuota/{socio_id}")
+def socio_pagar_cuota_online(
+    socio_id: int,
+    metodo: str = Form("MERCADOPAGO"),
+    db: Session = Depends(get_db)
+):
+    socio = db.query(models.Socio).get(socio_id)
+    if not socio:
+        raise HTTPException(status_code=404)
+
+    plan = socio.plan or db.query(models.Plan).filter(models.Plan.activo == True).first()
+    if not plan:
+        raise HTTPException(status_code=400, detail="No hay plan definido para este socio.")
+
+    # Registro de la transacción y renovación automática
+    hoy = date.today()
+    if socio.fecha_vencimiento_cuota and socio.fecha_vencimiento_cuota > hoy:
+        socio.fecha_vencimiento_cuota = socio.fecha_vencimiento_cuota + timedelta(days=plan.dias_duracion)
+    else:
+        socio.fecha_vencimiento_cuota = hoy + timedelta(days=plan.dias_duracion)
+
+    socio.estado_cuota = "ACTIVO"
+    socio.plan_id = plan.id
+
+    nuevo_pago = models.Pago(
+        socio_id=socio.id,
+        monto=plan.precio,
+        metodo_pago=metodo,
+        concepto=f"Abono Online: {plan.nombre}"
+    )
+    db.add(nuevo_pago)
+    db.commit()
+
+    return RedirectResponse(url=f"/socio/credencial/{socio.id}?pago_exitoso=1", status_code=status.HTTP_302_FOUND)
+
+# --- SIMULADOR DE MOLINETE ---
 
 @app.get("/molinete", response_class=HTMLResponse)
 def molinete_view(request: Request, user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user)):

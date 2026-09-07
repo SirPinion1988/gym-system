@@ -14,28 +14,29 @@
             <nav class="hidden md:flex space-x-4 text-sm font-medium">
                 <a href="/dashboard" class="text-slate-400 hover:text-white transition">Dashboard</a>
                 <a href="/socios" class="text-emerald-400 border-b-2 border-emerald-500 pb-1">Socios</a>
-                <a href="/molinete" class="text-slate-400 hover:text-white transition">Simulador Molinete</a>
+                <a href="/clases-profesores" class="text-slate-400 hover:text-white transition">Clases y Profes</a>
+                <a href="/caja-pagos" class="text-slate-400 hover:text-white transition">Caja / Cuotas</a>
+                <a href="/kiosco" class="text-slate-400 hover:text-white transition">Kiosco</a>
+                <a href="/molinete" class="text-slate-400 hover:text-white transition">Molinete</a>
             </nav>
         </div>
         <div class="flex items-center space-x-4">
-            <span class="text-xs text-slate-400 hidden sm:inline">{{ user.nombre }} ({{ user.rol }})</span>
+            <span class="text-xs text-slate-400 hidden sm:inline">{{ user.nombre }}</span>
             <a href="/logout" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg text-rose-400 transition">Cerrar Sesión</a>
         </div>
     </header>
 
-    <!-- Contenido Principal -->
     <main class="flex-1 p-6 max-w-7xl mx-auto w-full">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
             <div>
                 <h1 class="text-2xl font-black">Listado de Socios</h1>
-                <p class="text-xs text-slate-400">Gestión de miembros, credenciales y estados de pago.</p>
+                <p class="text-xs text-slate-400">Asigna planes, administra credenciales y estados de pago.</p>
             </div>
             <button onclick="document.getElementById('modal-crear').classList.remove('hidden')" class="bg-emerald-500 hover:bg-emerald-600 px-4 py-2 rounded-xl text-sm font-bold text-white transition flex items-center gap-2">
                 <span>+</span> Nuevo Socio
             </button>
         </div>
 
-        <!-- Tabla de socios -->
         <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-sm">
@@ -43,8 +44,8 @@
                         <tr>
                             <th class="p-4">Socio</th>
                             <th class="p-4">DNI / Contacto</th>
+                            <th class="p-4">Plan Asignado</th>
                             <th class="p-4">Cuota</th>
-                            <th class="p-4">Apto Médico</th>
                             <th class="p-4 text-center">Acceso</th>
                             <th class="p-4 text-right">Acciones</th>
                         </tr>
@@ -61,17 +62,22 @@
                                 <div class="text-xs text-slate-400">{{ s.email }}</div>
                             </td>
                             <td class="p-4">
-                                {% if s.estado_cuota == 'ACTIVO' %}
-                                    <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">Al Día</span>
-                                {% else %}
-                                    <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-rose-500/10 text-rose-400 border border-rose-500/30">Vencida</span>
-                                {% endif %}
+                                <form action="/socios/asignar-plan/{{ s.id }}" method="POST" class="flex items-center gap-1.5">
+                                    <select name="plan_id" onchange="this.form.submit()" class="bg-slate-950 border border-slate-700 text-xs rounded-lg px-2.5 py-1.5 text-slate-200 focus:outline-none focus:border-indigo-500 font-medium">
+                                        {% for p in planes %}
+                                        <option value="{{ p.id }}" {% if s.plan_id == p.id %}selected{% endif %}>
+                                            {{ p.nombre }} (${{ p.precio }})
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </form>
                             </td>
                             <td class="p-4">
-                                {% if s.apto_medico_vencimiento %}
-                                    <span class="text-xs">{{ s.apto_medico_vencimiento.strftime('%d/%m/%Y') }}</span>
+                                {% if s.estado_cuota == 'ACTIVO' %}
+                                    <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">Al Día</span>
+                                    <div class="text-[10px] text-slate-500 mt-1">Vence: {{ s.fecha_vencimiento_cuota.strftime('%d/%m/%Y') if s.fecha_vencimiento_cuota else '-' }}</div>
                                 {% else %}
-                                    <span class="text-xs text-amber-400 font-semibold">Pendiente</span>
+                                    <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-rose-500/10 text-rose-400 border border-rose-500/30">Vencida</span>
                                 {% endif %}
                             </td>
                             <td class="p-4 text-center">
@@ -103,7 +109,7 @@
         </div>
     </main>
 
-    <!-- MODAL: Crear Socio -->
+    <!-- MODAL: Crear Socio con Plan -->
     <div id="modal-crear" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-2xl p-6 shadow-2xl">
             <div class="flex justify-between items-center mb-4">
@@ -140,6 +146,14 @@
                         <label class="block text-xs text-slate-400 mb-1">Email</label>
                         <input type="email" name="email" required class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
                     </div>
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Plan de Cuota Asignado</label>
+                    <select name="plan_id" required class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
+                        {% for p in planes %}
+                        <option value="{{ p.id }}">{{ p.nombre }} - ${{ p.precio }} ({{ p.dias_duracion }} días)</option>
+                        {% endfor %}
+                    </select>
                 </div>
                 <div>
                     <label class="block text-xs text-slate-400 mb-1">Vencimiento Apto Médico (Opcional)</label>
