@@ -27,15 +27,15 @@
             </nav>
         </div>
         <div class="flex items-center space-x-4">
-            <span class="text-xs text-slate-400 hidden sm:inline">{{ user.nombre }} ({{ user.rol }})</span>
+            <span class="text-xs text-slate-400 hidden sm:inline">{{ user.nombre if user else 'Administrador' }}</span>
             <a href="/logout" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg text-rose-400 transition font-semibold">
                 Cerrar Sesión
             </a>
         </div>
     </header>
 
-    <!-- Menú Responsive para móviles -->
-    <nav class="lg:hidden bg-slate-900 border-b border-slate-800 px-4 py-2.5 flex overflow-x-auto space-x-4 text-xs font-medium scrollbar-none">
+    <!-- Menú Responsive para pantallas chicas -->
+    <nav class="lg:hidden bg-slate-900 border-b border-slate-800 px-4 py-2.5 flex overflow-x-auto space-x-4 text-xs font-medium">
         <a href="/dashboard" class="text-emerald-400 font-bold whitespace-nowrap">Dashboard</a>
         <a href="/socios" class="text-slate-400 whitespace-nowrap">Socios</a>
         <a href="/clases-profesores" class="text-slate-400 whitespace-nowrap">Clases y Profes</a>
@@ -47,11 +47,11 @@
 
     <!-- Contenido Principal -->
     <main class="flex-1 p-6 max-w-7xl mx-auto w-full space-y-6">
-        <!-- Saludo y accesos rápidos -->
+        <!-- Acciones Rápidas -->
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
                 <h1 class="text-2xl font-black text-white">Panel de Control General</h1>
-                <p class="text-xs text-slate-400">Resumen operativo, estado del gimnasio y accesos en tiempo real.</p>
+                <p class="text-xs text-slate-400">Resumen operativo, métricas y control de accesos.</p>
             </div>
             <div class="flex flex-wrap gap-2">
                 <a href="/socios" class="bg-emerald-600 hover:bg-emerald-500 px-3.5 py-2 rounded-xl text-xs font-bold text-white transition flex items-center gap-1.5 shadow-lg shadow-emerald-600/20">
@@ -74,7 +74,7 @@
                     <span class="text-lg">👥</span>
                 </div>
                 <div class="text-3xl font-black text-white">{{ total_socios }}</div>
-                <div class="text-[11px] text-slate-500 mt-1">Registrados en base de datos</div>
+                <div class="text-[11px] text-slate-500 mt-1">Registrados en el sistema</div>
             </div>
 
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
@@ -83,7 +83,7 @@
                     <span class="text-lg">✅</span>
                 </div>
                 <div class="text-3xl font-black text-emerald-400">{{ socios_activos }}</div>
-                <div class="text-[11px] text-emerald-500/70 mt-1">Acceso habilitado al molinete</div>
+                <div class="text-[11px] text-emerald-500/70 mt-1">Habilitados en molinete</div>
             </div>
 
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
@@ -92,7 +92,7 @@
                     <span class="text-lg">🏋️‍♂️</span>
                 </div>
                 <div class="text-3xl font-black text-indigo-400">{{ total_profes }}</div>
-                <div class="text-[11px] text-slate-500 mt-1">Entrenadores en planta</div>
+                <div class="text-[11px] text-slate-500 mt-1">Equipo de entrenadores</div>
             </div>
 
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
@@ -101,11 +101,11 @@
                     <span class="text-lg">📅</span>
                 </div>
                 <div class="text-3xl font-black text-amber-400">{{ total_clases }}</div>
-                <div class="text-[11px] text-slate-500 mt-1">Actividades programadas</div>
+                <div class="text-[11px] text-slate-500 mt-1">Horarios asignados</div>
             </div>
         </div>
 
-        <!-- Módulos de Acceso Rápido Directo -->
+        <!-- Módulos de Acceso Directo -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <a href="/balance" class="bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-emerald-500/50 rounded-2xl p-4 transition group">
                 <div class="flex items-center space-x-3">
@@ -114,7 +114,7 @@
                     </div>
                     <div>
                         <h3 class="font-bold text-sm text-white">Balance & Finanzas</h3>
-                        <p class="text-xs text-slate-400">Ver recaudación, caja y reportes en Excel/CSV.</p>
+                        <p class="text-xs text-slate-400">Ver recaudación y exportar a Excel/CSV.</p>
                     </div>
                 </div>
             </a>
@@ -126,7 +126,7 @@
                     </div>
                     <div>
                         <h3 class="font-bold text-sm text-white">Simulador Molinete</h3>
-                        <p class="text-xs text-slate-400">Probar lector QR y validación de entrada.</p>
+                        <p class="text-xs text-slate-400">Probar lector QR y respuesta eléctrica.</p>
                     </div>
                 </div>
             </a>
@@ -138,18 +138,18 @@
                     </div>
                     <div>
                         <h3 class="font-bold text-sm text-white">Portal del Socio</h3>
-                        <p class="text-xs text-slate-400">Vista del carnet móvil y botón de pago online.</p>
+                        <p class="text-xs text-slate-400">Credencial digital y botón de pago online.</p>
                     </div>
                 </div>
             </a>
         </div>
 
-        <!-- Tabla de Últimos Pasos por Molinete -->
+        <!-- Tabla de Accesos por Molinete con Protección contra Nulos -->
         <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
             <div class="flex justify-between items-center mb-4">
                 <div>
                     <h2 class="text-lg font-bold text-white">Auditoría en Tiempo Real: Molinete</h2>
-                    <p class="text-xs text-slate-400">Últimos 10 registros de acceso con tarjeta o código QR.</p>
+                    <p class="text-xs text-slate-400">Últimos registros de paso.</p>
                 </div>
                 <a href="/molinete" class="text-xs text-indigo-400 hover:underline font-semibold">Abrir simulador &rarr;</a>
             </div>
@@ -161,18 +161,22 @@
                             <th class="p-3.5">Hora / Fecha</th>
                             <th class="p-3.5">Socio</th>
                             <th class="p-3.5">Resultado</th>
-                            <th class="p-3.5">Detalle / Diagnóstico</th>
+                            <th class="p-3.5">Detalle</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-800">
                         {% for a in ultimos_accesos %}
                         <tr class="hover:bg-slate-800/40 transition">
                             <td class="p-3.5 font-mono text-xs text-slate-400">
-                                {{ a.fecha_hora.strftime('%d/%m/%Y %H:%M:%S') }}
+                                {{ a.fecha_hora.strftime('%d/%m/%Y %H:%M:%S') if a.fecha_hora else '-' }}
                             </td>
                             <td class="p-3.5">
-                                <span class="font-bold text-white">{{ a.socio.nombre }} {{ a.socio.apellido }}</span>
-                                <span class="text-xs text-slate-500 block">DNI: {{ a.socio.dni }}</span>
+                                {% if a.socio %}
+                                    <span class="font-bold text-white">{{ a.socio.nombre }} {{ a.socio.apellido }}</span>
+                                    <span class="text-xs text-slate-500 block">DNI: {{ a.socio.dni }}</span>
+                                {% else %}
+                                    <span class="font-bold text-slate-400">Socio no disponible</span>
+                                {% endif %}
                             </td>
                             <td class="p-3.5">
                                 {% if a.resultado == 'PERMITIDO' %}
@@ -194,8 +198,8 @@
                                     <span class="text-rose-400 font-medium">Cuota impaga / vencida</span>
                                 {% elif a.motivo == 'APTO_MEDICO_VENCIDO' %}
                                     <span class="text-amber-400 font-medium">Apto médico vencido</span>
-                                {% elif a.motivo == 'BLOQUEO_ADMINISTRATIVO' or a.motivo == 'BLOQUEADO_MANUAL' %}
-                                    <span class="text-rose-400 font-medium">Bloqueado por recepción</span>
+                                {% elif a.motivo == 'BLOQUEADO_MANUAL' or a.motivo == 'BLOQUEO_ADMINISTRATIVO' %}
+                                    <span class="text-rose-400 font-medium">Bloqueado por administración</span>
                                 {% else %}
                                     <span>{{ a.motivo }}</span>
                                 {% endif %}
@@ -204,7 +208,7 @@
                         {% else %}
                         <tr>
                             <td colspan="4" class="p-8 text-center text-slate-500 text-sm">
-                                Aún no se registraron ingresos por el molinete hoy.
+                                Aún no se registraron accesos hoy.
                             </td>
                         </tr>
                         {% endfor %}
