@@ -110,11 +110,15 @@ def index(request: Request, user: models.UsuarioSistema = Depends(auth.get_curre
 
 @app.get("/login", response_class=HTMLResponse)
 def login_view(request: Request):
-    return templates.TemplateResponse("login.html", {"request": request, "error": None})
-
+    return templates.TemplateResponse(
+        request=request,
+        name="login.html",
+        context={"error": None}
+    )
 
 @app.post("/login")
 def login_action(
+    request: Request,
     response: Response,
     username: str = Form(...),
     password: str = Form(...),
@@ -122,7 +126,11 @@ def login_action(
 ):
     user = db.query(models.UsuarioSistema).filter(models.UsuarioSistema.username == username).first()
     if not user or not auth.verify_password(password, user.password_hash) or not user.activo:
-        return templates.TemplateResponse("login.html", {"request": {}, "error": "Credenciales inválidas o usuario inactivo"})
+        return templates.TemplateResponse(
+            request=request,
+            name="login.html",
+            context={"error": "Credenciales inválidas o usuario inactivo"}
+        )
 
     token = auth.create_access_token(data={"sub": user.username, "rol": user.rol})
     resp = RedirectResponse(url="/dashboard", status_code=status.HTTP_302_FOUND)
