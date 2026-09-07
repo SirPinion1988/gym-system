@@ -9,19 +9,22 @@
 <body class="bg-slate-950 text-slate-100 min-h-screen p-4 flex flex-col items-center justify-center">
 
     <div class="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl relative overflow-hidden">
-        <!-- Encabezado -->
+        <!-- Encabezado con Logo -->
         <div class="flex justify-between items-center mb-4">
             <div>
                 <span class="text-[10px] uppercase tracking-wider text-emerald-400 font-bold">Gimnasio Fitness</span>
                 <h1 class="text-xl font-black text-white">{{ socio.nombre }} {{ socio.apellido }}</h1>
                 <p class="text-xs text-slate-400 font-mono">DNI: {{ socio.dni }}</p>
             </div>
-            <div class="w-10 h-10 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center font-black text-emerald-400 text-sm">
-                GP
+            <div>
+                <img src="/static/logo.png" onerror="this.style.display='none'; document.getElementById('cred-logo-fallback').style.display='inline-flex';" class="h-10 max-w-[80px] object-contain" alt="Logo">
+                <div id="cred-logo-fallback" class="hidden w-10 h-10 rounded-full bg-emerald-500/20 border border-emerald-500/40 items-center justify-center font-black text-emerald-400 text-sm">
+                    GP
+                </div>
             </div>
         </div>
 
-        <!-- Banner de Estado -->
+        <!-- Estado de Acceso -->
         {% if habilitado %}
             <div class="bg-emerald-950/70 border border-emerald-500/40 text-emerald-300 text-xs font-black px-3 py-2.5 rounded-xl text-center mb-4 flex items-center justify-center gap-2 shadow-lg">
                 <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> PUEDE PASAR AL GIMNASIO

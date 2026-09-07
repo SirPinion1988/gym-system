@@ -1,6 +1,7 @@
 import os
 import io
 import smtplib
+from pathlib import Path
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
@@ -8,7 +9,7 @@ from datetime import datetime, date, timedelta
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.lib.units import inch
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as RLImage
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 RAZON_SOCIAL = os.getenv("EMPRESA_RAZON_SOCIAL", "GYMPRO FITNESS CLUB")
@@ -20,6 +21,10 @@ SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
 SMTP_USER = os.getenv("SMTP_USER", "")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+
+# Ruta del logo
+BASE_DIR = Path(__file__).resolve().parent.parent
+LOGO_PATH = BASE_DIR / "static" / "logo.png"
 
 def emitir_factura_arca(socio_nombre: str, socio_dni: str, monto: float, concepto: str):
     numero_comp = int(datetime.utcnow().timestamp()) % 1000000
@@ -41,8 +46,8 @@ def generar_pdf_factura(socio_nombre: str, socio_dni: str, socio_email: str, fac
     elements = []
     styles = getSampleStyleSheet()
 
-    normal_style = ParagraphStyle('TextoNormal', parent=styles['Normal'], fontSize=9, leading=12, textColor=colors.HexColor("#334155"))
-    bold_style = ParagraphStyle('TextoBold', parent=styles['Normal'], fontSize=9, leading=12, fontName="Helvetica-Bold", textColor=colors.HexColor("#0f172a"))
+    normal_style = ParagraphStyle('TextoNormal', parent=styles['Normal'], fontSize=8.5, leading=11, textColor=colors.HexColor("#334155"))
+    bold_style = ParagraphStyle('TextoBold', parent=styles['Normal'], fontSize=8.5, leading=11, fontName="Helvetica-Bold", textColor=colors.HexColor("#0f172a"))
 
     tipo_comp = factura_data.get("tipo_comprobante", "C")
     pt_vta = factura_data.get("punto_venta", 1)
@@ -51,24 +56,35 @@ def generar_pdf_factura(socio_nombre: str, socio_dni: str, socio_email: str, fac
     cae_vto = factura_data.get("cae_vencimiento")
     cae_vto_str = cae_vto.strftime("%d/%m/%Y") if isinstance(cae_vto, (date, datetime)) else str(cae_vto)
 
+    # Preparar celda de emisor (con logo si existe)
+    emisor_elements = []
+    if LOGO_PATH.exists():
+        try:
+            img = RLImage(str(LOGO_PATH), width=1.4*inch, height=0.7*inch)
+            emisor_elements.append(img)
+            emisor_elements.append(Spacer(1, 4))
+        except Exception:
+            pass
+    emisor_elements.append(Paragraph(f"<b>{RAZON_SOCIAL}</b><br/>{DOMICILIO_COMERCIAL}<br/>CUIT: {CUIT_EMISOR}<br/>IVA: {CONDICION_IVA}", normal_style))
+
     header_data = [
         [
-            Paragraph(f"<b>{RAZON_SOCIAL}</b><br/>{DOMICILIO_COMERCIAL}<br/>CUIT: {CUIT_EMISOR}<br/>IVA: {CONDICION_IVA}", normal_style),
-            Paragraph(f"<font size=28><b>{tipo_comp}</b></font><br/><font size=7>COD. 011</font>", ParagraphStyle('C', alignment=1)),
+            emisor_elements,
+            Paragraph(f"<font size=26><b>{tipo_comp}</b></font><br/><font size=7>COD. 011</font>", ParagraphStyle('C', alignment=1)),
             Paragraph(f"<b>FACTURA ELECTRÓNICA</b><br/>Punto Venta: {pt_vta:04d} Comp: {num_comp:08d}<br/>Fecha: {datetime.now().strftime('%d/%m/%Y')}<br/><b>ARCA - Agencia de Recaudación</b>", normal_style)
         ]
     ]
-    t_header = Table(header_data, colWidths=[2.7*inch, 1.2*inch, 2.7*inch])
+    t_header = Table(header_data, colWidths=[2.8*inch, 1.1*inch, 2.7*inch])
     t_header.setStyle(TableStyle([
         ('BOX', (0,0), (-1,-1), 1, colors.HexColor("#cbd5e1")),
         ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor("#e2e8f0")),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
         ('BACKGROUND', (1,0), (1,0), colors.HexColor("#f8fafc")),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 8),
-        ('TOPPADDING', (0,0), (-1,-1), 8),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+        ('TOPPADDING', (0,0), (-1,-1), 6),
     ]))
     elements.append(t_header)
-    elements.append(Spacer(1, 15))
+    elements.append(Spacer(1, 14))
 
     cliente_data = [
         [Paragraph(f"<b>Socio / Cliente:</b> {socio_nombre}", normal_style), Paragraph(f"<b>DNI / Doc:</b> {socio_dni}", normal_style)],
@@ -81,7 +97,7 @@ def generar_pdf_factura(socio_nombre: str, socio_dni: str, socio_email: str, fac
         ('PADDING', (0,0), (-1,-1), 6),
     ]))
     elements.append(t_cliente)
-    elements.append(Spacer(1, 15))
+    elements.append(Spacer(1, 14))
 
     items_data = [
         [Paragraph("<b>Descripción del Servicio / Concepto</b>", bold_style), Paragraph("<b>Período</b>", bold_style), Paragraph("<b>Subtotal</b>", bold_style)],
@@ -97,7 +113,7 @@ def generar_pdf_factura(socio_nombre: str, socio_dni: str, socio_email: str, fac
         ('PADDING', (0,0), (-1,-1), 6),
     ]))
     elements.append(t_items)
-    elements.append(Spacer(1, 20))
+    elements.append(Spacer(1, 18))
 
     cae_data = [
         [Paragraph(f"<b>CAE N°:</b> {cae}<br/><b>Fecha Vto. CAE:</b> {cae_vto_str}", bold_style),
