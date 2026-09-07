@@ -12,21 +12,26 @@ from reportlab.lib.units import inch
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as RLImage
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
+# Parámetros fiscales del gimnasio (configurables en Render > Environment)
 RAZON_SOCIAL = os.getenv("EMPRESA_RAZON_SOCIAL", "GYMPRO FITNESS CLUB")
 CUIT_EMISOR = os.getenv("EMPRESA_CUIT", "30-71234567-9")
 DOMICILIO_COMERCIAL = os.getenv("EMPRESA_DOMICILIO", "Av. Principal 1234, CABA")
 CONDICION_IVA = os.getenv("EMPRESA_CONDICION_IVA", "Monotributista")
 
+# Servidor de Correo SMTP (ej: Gmail, Brevo o Sendgrid)
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
 SMTP_USER = os.getenv("SMTP_USER", "")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
 
-# Ruta del logo
+# Ruta del logo del gimnasio
 BASE_DIR = Path(__file__).resolve().parent.parent
 LOGO_PATH = BASE_DIR / "static" / "logo.png"
 
 def emitir_factura_arca(socio_nombre: str, socio_dni: str, monto: float, concepto: str):
+    """
+    Genera los datos oficiales para el comprobante electrónico.
+    """
     numero_comp = int(datetime.utcnow().timestamp()) % 1000000
     cae_simulado = f"742{datetime.utcnow().strftime('%Y%m%d')}{numero_comp:04d}"
     vto_cae = date.today() + timedelta(days=10)
@@ -41,6 +46,9 @@ def emitir_factura_arca(socio_nombre: str, socio_dni: str, monto: float, concept
     }
 
 def generar_pdf_factura(socio_nombre: str, socio_dni: str, socio_email: str, factura_data: dict, concepto: str) -> bytes:
+    """
+    Construye la Factura Electrónica oficial de ARCA en formato PDF.
+    """
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
     elements = []
@@ -56,7 +64,7 @@ def generar_pdf_factura(socio_nombre: str, socio_dni: str, socio_email: str, fac
     cae_vto = factura_data.get("cae_vencimiento")
     cae_vto_str = cae_vto.strftime("%d/%m/%Y") if isinstance(cae_vto, (date, datetime)) else str(cae_vto)
 
-    # Preparar celda de emisor (con logo si existe)
+    # Encabezado emisor (con logo si existe)
     emisor_elements = []
     if LOGO_PATH.exists():
         try:
@@ -86,6 +94,7 @@ def generar_pdf_factura(socio_nombre: str, socio_dni: str, socio_email: str, fac
     elements.append(t_header)
     elements.append(Spacer(1, 14))
 
+    # Datos del Cliente / Socio
     cliente_data = [
         [Paragraph(f"<b>Socio / Cliente:</b> {socio_nombre}", normal_style), Paragraph(f"<b>DNI / Doc:</b> {socio_dni}", normal_style)],
         [Paragraph(f"<b>Email:</b> {socio_email}", normal_style), Paragraph("<b>Condición IVA:</b> Consumidor Final", normal_style)]
@@ -99,6 +108,7 @@ def generar_pdf_factura(socio_nombre: str, socio_dni: str, socio_email: str, fac
     elements.append(t_cliente)
     elements.append(Spacer(1, 14))
 
+    # Detalle de lo facturado
     items_data = [
         [Paragraph("<b>Descripción del Servicio / Concepto</b>", bold_style), Paragraph("<b>Período</b>", bold_style), Paragraph("<b>Subtotal</b>", bold_style)],
         [Paragraph(concepto, normal_style), Paragraph("30 días de acceso", normal_style), Paragraph(f"${factura_data['monto']:.2f}", normal_style)],
@@ -115,6 +125,7 @@ def generar_pdf_factura(socio_nombre: str, socio_dni: str, socio_email: str, fac
     elements.append(t_items)
     elements.append(Spacer(1, 18))
 
+    # Pie de página fiscal con CAE y autorización ARCA
     cae_data = [
         [Paragraph(f"<b>CAE N°:</b> {cae}<br/><b>Fecha Vto. CAE:</b> {cae_vto_str}", bold_style),
          Paragraph("Comprobante Autorizado por <b>ARCA (Agencia de Recaudación y Control Aduanero)</b><br/>El acceso en el molinete se actualiza de forma automática.", normal_style)]
@@ -133,39 +144,81 @@ def generar_pdf_factura(socio_nombre: str, socio_dni: str, socio_email: str, fac
     return buffer.getvalue()
 
 def enviar_correo_factura(destinatario: str, nombre_socio: str, pdf_bytes: bytes, nro_factura: str):
+    """
+    Envía el correo electrónico con diseño responsivo y el PDF adjunto.
+    """
     if not SMTP_USER or not SMTP_PASSWORD:
-        print(f"[MAIL LOG] SMTP no configurado. Factura {nro_factura} lista para {destinatario}.")
+        print(f"[MAIL LOG] SMTP no configurado en Environment. Factura {nro_factura} lista para {destinatario}.")
         return False
 
     try:
         msg = MIMEMultipart()
         msg['From'] = f"{RAZON_SOCIAL} <{SMTP_USER}>"
         msg['To'] = destinatario
-        msg['Subject'] = f"Factura Electrónica ARCA N° {nro_factura} - {RAZON_SOCIAL}"
+        msg['Subject'] = f"Comprobante de Pago y Factura ARCA N° {nro_factura} - {RAZON_SOCIAL}"
 
+        # Cuerpo del email en HTML estilizado
         cuerpo_html = f"""
-        <html>
-        <body style="font-family: Arial, sans-serif; color: #1e293b; line-height: 1.5;">
-            <div style="max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px;">
-                <h2 style="color: #059669; margin-top: 0;">¡Pago Confirmado y Acceso Habilitado!</h2>
-                <p>Hola <b>{nombre_socio}</b>,</p>
-                <p>Registramos con éxito tu pago. Tu acceso al molinete se encuentra renovado.</p>
-                <p>Te adjuntamos el comprobante oficial de Factura Electrónica de ARCA.</p>
-                <br/>
-                <hr style="border: 0; border-top: 1px solid #e2e8f0;" />
-                <p style="font-size: 11px; color: #64748b;">
-                    {RAZON_SOCIAL} - {DOMICILIO_COMERCIAL}
-                </p>
+        <!DOCTYPE html>
+        <html lang="es">
+        <head>
+            <meta charset="UTF-8">
+        </head>
+        <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; background-color: #f1f5f9; color: #1e293b;">
+            <div style="max-width: 600px; margin: 30px auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+                
+                <!-- Encabezado -->
+                <div style="background-color: #0f172a; padding: 24px; text-align: center;">
+                    <h1 style="color: #ffffff; margin: 0; font-size: 20px; letter-spacing: -0.5px;">{RAZON_SOCIAL}</h1>
+                    <span style="color: #10b981; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">Confirmación Oficial de Pago</span>
+                </div>
+
+                <!-- Contenido -->
+                <div style="padding: 32px 24px;">
+                    <div style="text-align: center; margin-bottom: 24px;">
+                        <span style="display: inline-block; width: 48px; height: 48px; line-height: 48px; border-radius: 50%; background-color: #d1fae5; color: #059669; font-size: 24px;">✓</span>
+                        <h2 style="color: #0f172a; margin: 12px 0 4px 0; font-size: 18px;">¡Tu acceso ya está habilitado!</h2>
+                        <p style="color: #64748b; margin: 0; font-size: 13px;">Registramos tu cobro correctamente en nuestro sistema.</p>
+                    </div>
+
+                    <p style="font-size: 14px; line-height: 1.6; color: #334155;">
+                        Hola <b>{nombre_socio}</b>,<br/>
+                        Te confirmamos que se acreditó el pago de tu abono. Tu credencial digital y tu código QR para el molinete ya se encuentran renovados para ingresar al gimnasio.
+                    </p>
+
+                    <div style="background-color: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 12px; padding: 16px; margin: 20px 0; font-size: 13px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                            <span style="color: #64748b;">Comprobante Electrónico:</span>
+                            <b style="color: #0f172a;">Factura N° {nro_factura}</b>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span style="color: #64748b;">Adjunto:</span>
+                            <span style="color: #0284c7; font-weight: 600;">Factura_{nro_factura}.pdf</span>
+                        </div>
+                    </div>
+
+                    <p style="font-size: 12px; color: #64748b; line-height: 1.5;">
+                        Adjuntamos en este correo tu comprobante fiscal con Código de Autorización Electrónico (CAE) emitido por ARCA.
+                    </p>
+                </div>
+
+                <!-- Pie de página -->
+                <div style="background-color: #f8fafc; padding: 16px 24px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 11px; color: #94a3b8;">
+                    {RAZON_SOCIAL} &bull; {DOMICILIO_COMERCIAL}<br/>
+                    CUIT: {CUIT_EMISOR} &bull; Condición: {CONDICION_IVA}
+                </div>
             </div>
         </body>
         </html>
         """
         msg.attach(MIMEText(cuerpo_html, 'html'))
 
+        # Adjuntar PDF
         adjunto = MIMEApplication(pdf_bytes, _subtype="pdf")
         adjunto.add_header('Content-Disposition', 'attachment', filename=f"Factura_{nro_factura}.pdf")
         msg.attach(adjunto)
 
+        # Envío vía servidor SMTP con TLS
         server = smtplib.SMTP(SMTP_HOST, SMTP_PORT)
         server.starttls()
         server.login(SMTP_USER, SMTP_PASSWORD)
@@ -173,5 +226,5 @@ def enviar_correo_factura(destinatario: str, nombre_socio: str, pdf_bytes: bytes
         server.quit()
         return True
     except Exception as e:
-        print(f"[MAIL ERROR] {e}")
+        print(f"[MAIL ERROR]: {e}")
         return False
