@@ -19,18 +19,49 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Sistema de Gestión de Gimnasio")
 
-# --- RESOLUCIÓN DE RUTAS ABSOLUTAS ---
-BASE_DIR = Path(__file__).resolve().parent.parent
+# --- DETECCIÓN INTELIGENTE DE DIRECTORIOS (LINUX FRIENDLY) ---
+CURRENT_FILE = Path(__file__).resolve()
+APP_DIR = CURRENT_FILE.parent
+ROOT_DIR = APP_DIR.parent
 
-STATIC_DIR = BASE_DIR / "static"
-TEMPLATES_DIR = BASE_DIR / "templates"
+# Buscar posibles ubicaciones de templates
+POSSIBLE_TEMPLATE_DIRS = [
+    ROOT_DIR / "templates",
+    APP_DIR / "templates",
+    ROOT_DIR / "Templates",
+    APP_DIR / "Templates",
+]
 
-# Asegurar que existan directorios requeridos
+TEMPLATE_DIR = None
+for p in POSSIBLE_TEMPLATE_DIRS:
+    if p.exists() and p.is_dir():
+        TEMPLATE_DIR = p
+        break
+
+if not TEMPLATE_DIR:
+    # Si no existe ninguna, usamos por defecto ROOT_DIR / "templates"
+    TEMPLATE_DIR = ROOT_DIR / "templates"
+    TEMPLATE_DIR.mkdir(parents=True, exist_ok=True)
+
+print(f"--> [DEBUG] Directorio de templates seleccionado: {TEMPLATE_DIR}")
+if TEMPLATE_DIR.exists():
+    print(f"--> [DEBUG] Archivos en templates: {[f.name for f in TEMPLATE_DIR.iterdir()]}")
+
+# Buscar posibles ubicaciones de static
+POSSIBLE_STATIC_DIRS = [
+    ROOT_DIR / "static",
+    APP_DIR / "static",
+]
+STATIC_DIR = ROOT_DIR / "static"
+for p in POSSIBLE_STATIC_DIRS:
+    if p.exists() and p.is_dir():
+        STATIC_DIR = p
+        break
+
 STATIC_DIR.mkdir(parents=True, exist_ok=True)
-TEMPLATES_DIR.mkdir(parents=True, exist_ok=True)
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
-templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
 
 
 def calcular_edad(fecha_nac: date) -> int:
@@ -279,7 +310,6 @@ def validar_molinete(token: str = Form(...), db: Session = Depends(get_db)):
     if not socio:
         return JSONResponse({"abrir": False, "motivo": "QR no registrado", "color": "red"})
 
-    # 1. Bloqueo manual por el Administrador
     if socio.bloqueado_manual:
         log = models.RegistroAcceso(socio_id=socio.id, resultado="DENEGADO", motivo="BLOQUEO_ADMINISTRATIVO")
         db.add(log)
@@ -291,7 +321,6 @@ def validar_molinete(token: str = Form(...), db: Session = Depends(get_db)):
             "color": "red"
         })
 
-    # 2. Verificación de cuota
     if socio.estado_cuota != "ACTIVO" or (socio.fecha_vencimiento_cuota and socio.fecha_vencimiento_cuota < hoy):
         log = models.RegistroAcceso(socio_id=socio.id, resultado="DENEGADO", motivo="CUOTA_VENCIDA")
         db.add(log)
@@ -303,7 +332,6 @@ def validar_molinete(token: str = Form(...), db: Session = Depends(get_db)):
             "color": "red"
         })
 
-    # 3. Verificación de apto médico
     if socio.apto_medico_vencimiento and socio.apto_medico_vencimiento < hoy:
         log = models.RegistroAcceso(socio_id=socio.id, resultado="DENEGADO", motivo="APTO_MEDICO_VENCIDO")
         db.add(log)
@@ -315,7 +343,6 @@ def validar_molinete(token: str = Form(...), db: Session = Depends(get_db)):
             "color": "yellow"
         })
 
-    # Acceso Permitido
     log = models.RegistroAcceso(socio_id=socio.id, resultado="PERMITIDO", motivo="OK")
     db.add(log)
     db.commit()
@@ -327,7 +354,7 @@ def validar_molinete(token: str = Form(...), db: Session = Depends(get_db)):
     })
 
 
-# --- INTEGRACIÓN MERCADO PAGO (ESTRUCTURA BASE) ---
+# --- INTEGRACIÓN MERCADO PAGO ---
 
 @app.post("/api/pagos/crear-preferencia/{socio_id}")
 def crear_pago_mercadopago(socio_id: int, db: Session = Depends(get_db)):
