@@ -1,60 +1,113 @@
-{% extends "base.html" %}
-{% block content %}
-<h2 class="text-2xl font-bold mb-2">Simulador de Molinete / Lector de Acceso</h2>
-<p class="text-sm text-slate-400 mb-6">Conecta el escáner USB o pega el código del socio para simular la apertura del molinete.</p>
-
-<div class="max-w-xl bg-slate-950 border border-slate-800 p-6 rounded-2xl">
-    <form id="form-molinete" class="space-y-4">
-        <div>
-            <label class="block text-xs font-semibold text-slate-400 mb-1">Escanear Token / QR</label>
-            <input type="text" id="input-token" autofocus placeholder="Pasa el lector aquí..." class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:outline-none focus:border-emerald-500 font-mono">
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Molinete | Simulador de Control de Acceso</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
+    <!-- Navbar -->
+    <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between">
+        <div class="flex items-center space-x-6">
+            <span class="text-xl font-bold tracking-tight text-emerald-400">GymPro</span>
+            <nav class="hidden md:flex space-x-4 text-sm font-medium">
+                <a href="/dashboard" class="text-slate-400 hover:text-white transition">Dashboard</a>
+                <a href="/socios" class="text-slate-400 hover:text-white transition">Socios</a>
+                <a href="/molinete" class="text-emerald-400 border-b-2 border-emerald-500 pb-1">Simulador Molinete</a>
+            </nav>
         </div>
-        <button type="submit" class="w-full bg-sky-500 hover:bg-sky-600 font-bold py-3 rounded-lg transition">Validar Paso</button>
-    </form>
+        <a href="/logout" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg text-rose-400 transition">Cerrar Sesión</a>
+    </header>
 
-    <!-- Indicador de Apertura -->
-    <div id="resultado" class="hidden mt-6 p-6 rounded-xl text-center border">
-        <div id="res-icono" class="text-4xl mb-2"></div>
-        <h3 id="res-titulo" class="text-xl font-bold"></h3>
-        <p id="res-motivo" class="text-sm text-slate-300 mt-1"></p>
-    </div>
-</div>
+    <main class="flex-1 p-6 max-w-4xl mx-auto w-full flex flex-col items-center justify-center">
+        <div class="w-full bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl text-center">
+            <div class="w-16 h-16 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center mx-auto mb-4 text-3xl">
+                🔄
+            </div>
+            <h1 class="text-2xl font-black text-white mb-2">Simulador de Molinete y Control de Acceso</h1>
+            <p class="text-sm text-slate-400 mb-8 max-w-md mx-auto">
+                Ingresa o escanea el token QR de un socio para emular la orden electrónica que recibe el molinete físico.
+            </p>
 
-<script>
-document.getElementById('form-molinete').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const token = document.getElementById('input-token').value;
-    if (!token) return;
+            <!-- Semáforo visual del molinete -->
+            <div id="display-estado" class="w-full max-w-md mx-auto p-6 rounded-2xl bg-slate-950 border-2 border-slate-800 mb-6 transition-all duration-300">
+                <div id="semaforo-icon" class="text-5xl mb-2">🔒</div>
+                <div id="semaforo-titulo" class="text-lg font-black text-slate-300 uppercase tracking-wide">Molinete Bloqueado</div>
+                <div id="semaforo-detalle" class="text-xs text-slate-500 mt-1">Esperando lectura de código QR...</div>
+            </div>
 
-    const formData = new FormData();
-    formData.append('token', token);
+            <!-- Formulario de ingreso de Token -->
+            <form id="form-validar" class="max-w-md mx-auto flex gap-2">
+                <input type="text" id="token-input" placeholder="Pega el token aquí (Ej: GYM-42123456-a1b2c3d4)" required autofocus
+                       class="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 font-mono">
+                <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 font-bold px-6 py-3 rounded-xl text-white text-sm transition">
+                    Escanear
+                </button>
+            </form>
+        </div>
+    </main>
 
-    const res = await fetch('/api/molinete/validar', { method: 'POST', body: formData });
-    const data = await res.json();
+    <script>
+        const form = document.getElementById('form-validar');
+        const tokenInput = document.getElementById('token-input');
+        const display = document.getElementById('display-estado');
+        const icon = document.getElementById('semaforo-icon');
+        const titulo = document.getElementById('semaforo-titulo');
+        const detalle = document.getElementById('semaforo-detalle');
 
-    const box = document.getElementById('resultado');
-    const ico = document.getElementById('res-icono');
-    const tit = document.getElementById('res-titulo');
-    const mot = document.getElementById('res-motivo');
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const token = tokenInput.value.trim();
+            if (!token) return;
 
-    box.classList.remove('hidden', 'border-emerald-500', 'border-red-500', 'border-yellow-500', 'bg-emerald-500/10', 'bg-red-500/10', 'bg-yellow-500/10');
+            titulo.innerText = "Consultando base de datos...";
+            detalle.innerText = "Verificando cuota, apto médico y estado...";
 
-    if (data.abrir) {
-        box.classList.add('border-emerald-500', 'bg-emerald-500/10');
-        ico.innerText = '🔓';
-        tit.innerText = 'MOLINETE LIBERADO';
-        tit.className = 'text-xl font-bold text-emerald-400';
-        mot.innerText = `${data.socio} - ${data.motivo}`;
-    } else {
-        box.classList.add('border-red-500', 'bg-red-500/10');
-        ico.innerText = '🔒';
-        tit.innerText = 'ACCESO DENEGADO';
-        tit.className = 'text-xl font-bold text-red-400';
-        mot.innerText = `${data.socio || ''} - Motivo: ${data.motivo}`;
-    }
+            try {
+                const formData = new FormData();
+                formData.append('token', token);
 
-    document.getElementById('input-token').value = '';
-    document.getElementById('input-token').focus();
-});
-</script>
-{% endblock %}
+                const res = await fetch('/api/molinete/validar', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+
+                if (data.abrir) {
+                    // Acceso Permitido (VERDE)
+                    display.className = "w-full max-w-md mx-auto p-6 rounded-2xl bg-emerald-950/40 border-2 border-emerald-500 mb-6";
+                    icon.innerText = "🔓";
+                    titulo.className = "text-xl font-black text-emerald-400 uppercase tracking-wide";
+                    titulo.innerText = "ACCESO HABILITADO";
+                    detalle.className = "text-sm font-semibold text-emerald-200 mt-1";
+                    detalle.innerText = `${data.socio} • Pase liberado`;
+                } else {
+                    // Acceso Denegado (ROJO / AMARILLO)
+                    display.className = "w-full max-w-md mx-auto p-6 rounded-2xl bg-rose-950/40 border-2 border-rose-500 mb-6";
+                    icon.innerText = "🚫";
+                    titulo.className = "text-xl font-black text-rose-400 uppercase tracking-wide";
+                    titulo.innerText = "ACCESO DENEGADO";
+                    detalle.className = "text-sm font-semibold text-rose-300 mt-1";
+                    detalle.innerText = `${data.socio ? data.socio + ' - ' : ''}${data.motivo}`;
+                }
+
+                // Reset automático a los 5 segundos (como un molinete real)
+                setTimeout(() => {
+                    display.className = "w-full max-w-md mx-auto p-6 rounded-2xl bg-slate-950 border-2 border-slate-800 mb-6 transition-all duration-300";
+                    icon.innerText = "🔒";
+                    titulo.className = "text-lg font-black text-slate-300 uppercase tracking-wide";
+                    titulo.innerText = "Molinete Bloqueado";
+                    detalle.className = "text-xs text-slate-500 mt-1";
+                    detalle.innerText = "Esperando lectura de código QR...";
+                    tokenInput.value = "";
+                    tokenInput.focus();
+                }, 5000);
+
+            } catch (err) {
+                alert("Error de conexión al validar el molinete");
+            }
+        });
+    </script>
+</body>
+</html>

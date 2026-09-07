@@ -5,6 +5,8 @@ import io
 import base64
 from pathlib import Path
 from datetime import date, datetime, timedelta
+from typing import Optional
+
 from fastapi import FastAPI, Depends, Request, Form, HTTPException, status, Response
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -14,50 +16,28 @@ from sqlalchemy.orm import Session
 from .database import engine, Base, get_db
 from . import models, auth
 
-# Crea las tablas si no existen
+# Crear tablas en PostgreSQL
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Sistema de Gestión de Gimnasio")
 
-# --- DETECCIÓN INTELIGENTE DE DIRECTORIOS (LINUX FRIENDLY) ---
+# --- RESOLUCIÓN ROBUSTA DE DIRECTORIOS ---
 CURRENT_FILE = Path(__file__).resolve()
 APP_DIR = CURRENT_FILE.parent
 ROOT_DIR = APP_DIR.parent
 
-# Buscar posibles ubicaciones de templates
 POSSIBLE_TEMPLATE_DIRS = [
     ROOT_DIR / "templates",
-    APP_DIR / "templates",
-    ROOT_DIR / "Templates",
-    APP_DIR / "Templates",
+    APP_DIR / "templates"
 ]
+TEMPLATE_DIR = next((p for p in POSSIBLE_TEMPLATE_DIRS if p.exists() and p.is_dir()), ROOT_DIR / "templates")
+TEMPLATE_DIR.mkdir(parents=True, exist_ok=True)
 
-TEMPLATE_DIR = None
-for p in POSSIBLE_TEMPLATE_DIRS:
-    if p.exists() and p.is_dir():
-        TEMPLATE_DIR = p
-        break
-
-if not TEMPLATE_DIR:
-    # Si no existe ninguna, usamos por defecto ROOT_DIR / "templates"
-    TEMPLATE_DIR = ROOT_DIR / "templates"
-    TEMPLATE_DIR.mkdir(parents=True, exist_ok=True)
-
-print(f"--> [DEBUG] Directorio de templates seleccionado: {TEMPLATE_DIR}")
-if TEMPLATE_DIR.exists():
-    print(f"--> [DEBUG] Archivos en templates: {[f.name for f in TEMPLATE_DIR.iterdir()]}")
-
-# Buscar posibles ubicaciones de static
 POSSIBLE_STATIC_DIRS = [
     ROOT_DIR / "static",
-    APP_DIR / "static",
+    APP_DIR / "static"
 ]
-STATIC_DIR = ROOT_DIR / "static"
-for p in POSSIBLE_STATIC_DIRS:
-    if p.exists() and p.is_dir():
-        STATIC_DIR = p
-        break
-
+STATIC_DIR = next((p for p in POSSIBLE_STATIC_DIRS if p.exists() and p.is_dir()), ROOT_DIR / "static")
 STATIC_DIR.mkdir(parents=True, exist_ok=True)
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
@@ -96,7 +76,6 @@ def startup_db_init():
             db.add(admin_user)
             db.commit()
         else:
-            # Asegura que la contraseña sea siempre admin123 con el hash correcto
             admin.password_hash = auth.hash_password("admin123")
             admin.activo = True
             db.commit()
@@ -104,10 +83,10 @@ def startup_db_init():
         db.close()
 
 
-# --- RUTAS DE ADMINISTRACIÓN / OPERADOR ---
+# --- RUTAS DE AUTENTICACIÓN ---
 
 @app.get("/", response_class=HTMLResponse)
-def index(request: Request, user: models.UsuarioSistema = Depends(auth.get_current_user)):
+def index(request: Request, user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user)):
     if not user:
         return RedirectResponse(url="/login")
     return RedirectResponse(url="/dashboard")
@@ -115,11 +94,8 @@ def index(request: Request, user: models.UsuarioSistema = Depends(auth.get_curre
 
 @app.get("/login", response_class=HTMLResponse)
 def login_view(request: Request):
-    return templates.TemplateResponse(
-        request=request,
-        name="login.html",
-        context={"error": None}
-    )
+    return templates.TemplateResponse(request=request, name="login.html", context={"error": None})
+
 
 @app.post("/login")
 def login_action(
@@ -129,17 +105,13 @@ def login_action(
     password: str = Form(...),
     db: Session = Depends(get_db)
 ):
-    user = db.query(models.UsuarioSistema).filter(models.UsuarioSistema.username == username).first()
+    user = db.query(models.UsuarioSistema).filter(models.UsuarioSistema.username == username.strip()).first()
     if not user or not auth.verify_password(password, user.password_hash) or not user.activo:
-        return templates.TemplateResponse(
-            request=request,
-            name="login.html",
-            context={"error": "Credenciales inválidas o usuario inactivo"}
-        )
+        return templates.TemplateResponse(request=request, name="login.html", context={"error": "Usuario o contraseña inválidos."})
 
     token = auth.create_access_token(data={"sub": user.username, "rol": user.rol})
     resp = RedirectResponse(url="/dashboard", status_code=status.HTTP_302_FOUND)
-    resp.set_cookie(key="access_token", value=token, httponly=True)
+    resp.set_cookie(key="access_token", value=token, httponly=True, secure=True, samesite="lax")
     return resp
 
 
@@ -150,8 +122,14 @@ def logout():
     return resp
 
 
+# --- PANEL PRINCIPAL (DASHBOARD) ---
+
 @app.get("/dashboard", response_class=HTMLResponse)
-def dashboard(request: Request, user: models.UsuarioSistema = Depends(auth.get_current_user), db: Session = Depends(get_db)):
+def dashboard(
+    request: Request,
+    user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
     if not user:
         return RedirectResponse(url="/login")
 
@@ -160,26 +138,30 @@ def dashboard(request: Request, user: models.UsuarioSistema = Depends(auth.get_c
     total_actividades = db.query(models.Actividad).count()
     ultimos_accesos = db.query(models.RegistroAcceso).order_by(models.RegistroAcceso.fecha_hora.desc()).limit(10).all()
 
-    return templates.TemplateResponse(
-        request=request,
-        name="dashboard.html",
-        context={
-            "user": user,
-            "total_socios": total_socios,
-            "socios_activos": socios_activos,
-            "total_actividades": total_actividades,
-            "ultimos_accesos": ultimos_accesos
-        }
-    )
+    return templates.TemplateResponse(request=request, name="dashboard.html", context={
+        "user": user,
+        "total_socios": total_socios,
+        "socios_activos": socios_activos,
+        "total_actividades": total_actividades,
+        "ultimos_accesos": ultimos_accesos
+    })
+
 
 # --- GESTIÓN DE SOCIOS ---
 
 @app.get("/socios", response_class=HTMLResponse)
-def socios_view(request: Request, user: models.UsuarioSistema = Depends(auth.get_current_user), db: Session = Depends(get_db)):
+def socios_view(
+    request: Request,
+    user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
     if not user:
         return RedirectResponse(url="/login")
     socios = db.query(models.Socio).order_by(models.Socio.id.desc()).all()
-    return templates.TemplateResponse("socios.html", {"request": request, "user": user, "socios": socios})
+    return templates.TemplateResponse(request=request, name="socios.html", context={
+        "user": user,
+        "socios": socios
+    })
 
 
 @app.post("/socios/crear")
@@ -190,16 +172,19 @@ def crear_socio(
     fecha_nacimiento: str = Form(...),
     celular: str = Form(...),
     email: str = Form(...),
-    apto_medico_vencimiento: str = Form(None),
-    user: models.UsuarioSistema = Depends(auth.get_current_user),
+    apto_medico_vencimiento: Optional[str] = Form(None),
+    user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user),
     db: Session = Depends(get_db)
 ):
     if not user:
         return RedirectResponse(url="/login")
 
-    f_nac = datetime.strptime(fecha_nacimiento, "%Y-%m-%d").date()
+    f_nac = datetime.strptime(fecha_nacimiento.strip(), "%Y-%m-%d").date()
     edad = calcular_edad(f_nac)
-    f_apto = datetime.strptime(apto_medico_vencimiento, "%Y-%m-%d").date() if apto_medico_vencimiento else None
+    
+    f_apto = None
+    if apto_medico_vencimiento and apto_medico_vencimiento.strip():
+        f_apto = datetime.strptime(apto_medico_vencimiento.strip(), "%Y-%m-%d").date()
 
     token_qr = f"GYM-{dni.strip()}-{uuid.uuid4().hex[:8]}"
 
@@ -223,10 +208,14 @@ def crear_socio(
 
 
 @app.get("/socios/qr/{socio_id}")
-def ver_qr_socio(socio_id: int, user: models.UsuarioSistema = Depends(auth.get_current_user), db: Session = Depends(get_db)):
+def ver_qr_socio(
+    socio_id: int,
+    user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
     if not user:
-        raise HTTPException(status_code=401)
-    socio = db.query(models.Socio).get(socio_id)
+        raise HTTPException(status_code=401, detail="No autorizado")
+    socio = db.query(models.Socio).filter(models.Socio.id == socio_id).first()
     if not socio:
         raise HTTPException(status_code=404, detail="Socio no encontrado")
 
@@ -242,26 +231,26 @@ def ver_qr_socio(socio_id: int, user: models.UsuarioSistema = Depends(auth.get_c
 @app.post("/socios/toggle-bloqueo/{socio_id}")
 def toggle_bloqueo_socio(
     socio_id: int,
-    user: models.UsuarioSistema = Depends(auth.get_current_user),
+    user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user),
     db: Session = Depends(get_db)
 ):
     if not user:
-        raise HTTPException(status_code=401)
+        raise HTTPException(status_code=401, detail="No autorizado")
 
-    socio = db.query(models.Socio).get(socio_id)
+    socio = db.query(models.Socio).filter(models.Socio.id == socio_id).first()
     if not socio:
-        raise HTTPException(status_code=404)
+        raise HTTPException(status_code=404, detail="Socio no encontrado")
 
     socio.bloqueado_manual = not socio.bloqueado_manual
     db.commit()
     return RedirectResponse(url="/socios", status_code=status.HTTP_302_FOUND)
 
 
-# --- PORTAL PÚBLICO DEL SOCIO (DNI + MAIL) ---
+# --- PORTAL DEL SOCIO (LOGIN DNI + CORREO) ---
 
 @app.get("/socio/login", response_class=HTMLResponse)
 def socio_login_view(request: Request):
-    return templates.TemplateResponse("socio_login.html", {"request": request, "error": None})
+    return templates.TemplateResponse(request=request, name="socio_login.html", context={"error": None})
 
 
 @app.post("/socio/login")
@@ -277,9 +266,8 @@ def socio_login_action(
     ).first()
 
     if not socio:
-        return templates.TemplateResponse("socio_login.html", {
-            "request": request,
-            "error": "Los datos no coinciden con ningún socio registrado."
+        return templates.TemplateResponse(request=request, name="socio_login.html", context={
+            "error": "No encontramos ningún socio con ese DNI y correo."
         })
 
     return RedirectResponse(url=f"/socio/credencial/{socio.id}", status_code=status.HTTP_302_FOUND)
@@ -287,7 +275,7 @@ def socio_login_action(
 
 @app.get("/socio/credencial/{socio_id}", response_class=HTMLResponse)
 def socio_credencial_view(socio_id: int, request: Request, db: Session = Depends(get_db)):
-    socio = db.query(models.Socio).get(socio_id)
+    socio = db.query(models.Socio).filter(models.Socio.id == socio_id).first()
     if not socio:
         return RedirectResponse(url="/socio/login")
 
@@ -298,8 +286,7 @@ def socio_credencial_view(socio_id: int, request: Request, db: Session = Depends
 
     qr_b64 = generar_qr_base64(socio.qr_token)
 
-    return templates.TemplateResponse("socio_credencial.html", {
-        "request": request,
+    return templates.TemplateResponse(request=request, name="socio_credencial.html", context={
         "socio": socio,
         "habilitado": habilitado,
         "cuota_al_dia": cuota_al_dia,
@@ -308,22 +295,26 @@ def socio_credencial_view(socio_id: int, request: Request, db: Session = Depends
     })
 
 
-# --- VALIDACIÓN DEL MOLINETE ---
+# --- SIMULADOR Y API DEL MOLINETE ---
 
 @app.get("/molinete", response_class=HTMLResponse)
-def molinete_view(request: Request, user: models.UsuarioSistema = Depends(auth.get_current_user)):
+def molinete_view(
+    request: Request,
+    user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user)
+):
     if not user:
         return RedirectResponse(url="/login")
-    return templates.TemplateResponse("molinete.html", {"request": request, "user": user})
+    return templates.TemplateResponse(request=request, name="molinete.html", context={"user": user})
 
 
 @app.post("/api/molinete/validar")
 def validar_molinete(token: str = Form(...), db: Session = Depends(get_db)):
-    socio = db.query(models.Socio).filter(models.Socio.qr_token == token.strip()).first()
+    limpio = token.strip()
+    socio = db.query(models.Socio).filter(models.Socio.qr_token == limpio).first()
     hoy = date.today()
 
     if not socio:
-        return JSONResponse({"abrir": False, "motivo": "QR no registrado", "color": "red"})
+        return JSONResponse({"abrir": False, "motivo": "QR no registrado en el sistema", "color": "red"})
 
     if socio.bloqueado_manual:
         log = models.RegistroAcceso(socio_id=socio.id, resultado="DENEGADO", motivo="BLOQUEO_ADMINISTRATIVO")
@@ -358,27 +349,12 @@ def validar_molinete(token: str = Form(...), db: Session = Depends(get_db)):
             "color": "yellow"
         })
 
-    log = models.RegistroAcceso(socio_id=socio.id, resultado="PERMITIDO", motivo="OK")
+    log = models.RegistroAcceso(socio_id=socio.id, resultado="PERMITIDO", motivo="ACCESO_OK")
     db.add(log)
     db.commit()
     return JSONResponse({
         "abrir": True,
         "socio": f"{socio.nombre} {socio.apellido}",
-        "motivo": "Acceso Permitido",
+        "motivo": "Acceso Habilitado - Bienvenido",
         "color": "green"
     })
-
-
-# --- INTEGRACIÓN MERCADO PAGO ---
-
-@app.post("/api/pagos/crear-preferencia/{socio_id}")
-def crear_pago_mercadopago(socio_id: int, db: Session = Depends(get_db)):
-    socio = db.query(models.Socio).get(socio_id)
-    if not socio:
-        raise HTTPException(status_code=404)
-
-    return {
-        "status": "ready_for_mercadopago",
-        "init_point": f"https://sandbox.mercadopago.com/checkout/mock-payment-{socio.id}",
-        "mensaje": "Endpoint preparado para vincular con MP_ACCESS_TOKEN"
-    }

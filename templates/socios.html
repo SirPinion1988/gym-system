@@ -1,125 +1,189 @@
-{% extends "base.html" %}
-{% block content %}
-<div class="flex justify-between items-center mb-6">
-    <h2 class="text-2xl font-bold">Gestión de Socios</h2>
-    <button onclick="document.getElementById('modal-socio').classList.remove('hidden')" class="bg-emerald-500 hover:bg-emerald-600 px-4 py-2 rounded-lg font-semibold transition text-sm">
-        + Nuevo Socio
-    </button>
-</div>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Socios | Sistema Gimnasio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
+    <!-- Navbar -->
+    <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between">
+        <div class="flex items-center space-x-6">
+            <span class="text-xl font-bold tracking-tight text-emerald-400">GymPro</span>
+            <nav class="hidden md:flex space-x-4 text-sm font-medium">
+                <a href="/dashboard" class="text-slate-400 hover:text-white transition">Dashboard</a>
+                <a href="/socios" class="text-emerald-400 border-b-2 border-emerald-500 pb-1">Socios</a>
+                <a href="/molinete" class="text-slate-400 hover:text-white transition">Simulador Molinete</a>
+            </nav>
+        </div>
+        <div class="flex items-center space-x-4">
+            <span class="text-xs text-slate-400 hidden sm:inline">{{ user.nombre }} ({{ user.rol }})</span>
+            <a href="/logout" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg text-rose-400 transition">Cerrar Sesión</a>
+        </div>
+    </header>
 
-<!-- Tabla Socios -->
-<div class="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden mb-8">
-    <table class="w-full text-left text-sm">
-        <thead class="bg-slate-900 text-slate-400 border-b border-slate-800">
-            <tr>
-                <th class="p-3">DNI</th>
-                <th class="p-3">Nombre y Apellido</th>
-                <th class="p-3">Edad</th>
-                <th class="p-3">Celular</th>
-                <th class="p-3">Estado Cuota</th>
-                <th class="p-3">Apto Médico</th>
-                <th class="p-3 text-center">Control Admin</th>
-                <th class="p-3 text-center">Acciones</th>
-            </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-800">
-            {% for s in socios %}
-            <tr>
-                <td class="p-3 font-mono">{{ s.dni }}</td>
-                <td class="p-3 font-medium">{{ s.nombre }} {{ s.apellido }}</td>
-                <td class="p-3">{{ s.edad }} años</td>
-                <td class="p-3">{{ s.celular }}</td>
-                <td class="p-3">
-                    <span class="px-2 py-0.5 rounded text-xs font-bold {% if s.estado_cuota == 'ACTIVO' %}bg-emerald-500/20 text-emerald-400{% else %}bg-yellow-500/20 text-yellow-400{% endif %}">
-                        {{ s.estado_cuota }}
-                    </span>
-                </td>
-                <td class="p-3 text-xs text-slate-400">
-                    {{ s.apto_medico_vencimiento.strftime('%d/%m/%Y') if s.apto_medico_vencimiento else 'Sin registrar' }}
-                </td>
-                <td class="p-3 text-center">
-                    <form action="/socios/toggle-bloqueo/{{ s.id }}" method="POST">
-                        {% if s.bloqueado_manual %}
-                            <button type="submit" class="bg-red-500/20 text-red-400 border border-red-500/30 px-2.5 py-1 rounded text-xs font-bold hover:bg-red-500/30 transition">
-                                🚫 Bloqueado
-                            </button>
+    <!-- Contenido Principal -->
+    <main class="flex-1 p-6 max-w-7xl mx-auto w-full">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+            <div>
+                <h1 class="text-2xl font-black">Listado de Socios</h1>
+                <p class="text-xs text-slate-400">Gestión de miembros, credenciales y estados de pago.</p>
+            </div>
+            <button onclick="document.getElementById('modal-crear').classList.remove('hidden')" class="bg-emerald-500 hover:bg-emerald-600 px-4 py-2 rounded-xl text-sm font-bold text-white transition flex items-center gap-2">
+                <span>+</span> Nuevo Socio
+            </button>
+        </div>
+
+        <!-- Tabla de socios -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-slate-950/50 text-slate-400 text-xs uppercase font-semibold border-b border-slate-800">
+                        <tr>
+                            <th class="p-4">Socio</th>
+                            <th class="p-4">DNI / Contacto</th>
+                            <th class="p-4">Cuota</th>
+                            <th class="p-4">Apto Médico</th>
+                            <th class="p-4 text-center">Acceso</th>
+                            <th class="p-4 text-right">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800">
+                        {% for s in socios %}
+                        <tr class="hover:bg-slate-800/40 transition">
+                            <td class="p-4">
+                                <div class="font-bold text-white">{{ s.nombre }} {{ s.apellido }}</div>
+                                <div class="text-xs text-slate-400">{{ s.edad }} años</div>
+                            </td>
+                            <td class="p-4">
+                                <div class="font-medium">DNI: {{ s.dni }}</div>
+                                <div class="text-xs text-slate-400">{{ s.email }}</div>
+                            </td>
+                            <td class="p-4">
+                                {% if s.estado_cuota == 'ACTIVO' %}
+                                    <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">Al Día</span>
+                                {% else %}
+                                    <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-rose-500/10 text-rose-400 border border-rose-500/30">Vencida</span>
+                                {% endif %}
+                            </td>
+                            <td class="p-4">
+                                {% if s.apto_medico_vencimiento %}
+                                    <span class="text-xs">{{ s.apto_medico_vencimiento.strftime('%d/%m/%Y') }}</span>
+                                {% else %}
+                                    <span class="text-xs text-amber-400 font-semibold">Pendiente</span>
+                                {% endif %}
+                            </td>
+                            <td class="p-4 text-center">
+                                {% if s.bloqueado_manual %}
+                                    <span class="px-2 py-0.5 rounded text-xs bg-rose-900/60 text-rose-300 font-bold">Bloqueado</span>
+                                {% else %}
+                                    <span class="px-2 py-0.5 rounded text-xs bg-emerald-900/60 text-emerald-300 font-bold">Habilitado</span>
+                                {% endif %}
+                            </td>
+                            <td class="p-4 text-right space-x-2 whitespace-nowrap">
+                                <button onclick="verQR({{ s.id }})" class="bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 rounded-lg text-xs font-bold text-white transition">
+                                    Ver QR
+                                </button>
+                                <form action="/socios/toggle-bloqueo/{{ s.id }}" method="POST" class="inline">
+                                    <button type="submit" class="bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-300 transition">
+                                        {% if s.bloqueado_manual %}Desbloquear{% else %}Bloquear{% endif %}
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
                         {% else %}
-                            <button type="submit" class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2.5 py-1 rounded text-xs font-bold hover:bg-emerald-500/30 transition">
-                                ✅ Habilitado
-                            </button>
-                        {% endif %}
-                    </form>
-                </td>
-                <td class="p-3 text-center">
-                    <button onclick="verQr({{ s.id }})" class="bg-sky-500/20 text-sky-400 px-3 py-1 rounded hover:bg-sky-500/30 text-xs font-semibold">
-                        Ver QR
-                    </button>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
+                        <tr>
+                            <td colspan="6" class="p-8 text-center text-slate-500 text-sm">No hay socios registrados todavía. Carga el primero con el botón "+ Nuevo Socio".</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
 
-<!-- Modal Crear Socio -->
-<div id="modal-socio" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl w-full max-w-lg">
-        <h3 class="text-xl font-bold mb-4">Ingreso de Nuevo Socio</h3>
-        <form action="/socios/crear" method="POST" class="grid grid-cols-2 gap-4">
-            <div>
-                <label class="block text-xs font-semibold text-slate-400 mb-1">Nombre</label>
-                <input type="text" name="nombre" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white">
+    <!-- MODAL: Crear Socio -->
+    <div id="modal-crear" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-2xl p-6 shadow-2xl">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-bold">Alta de Nuevo Socio</h2>
+                <button onclick="document.getElementById('modal-crear').classList.add('hidden')" class="text-slate-400 hover:text-white text-xl">&times;</button>
             </div>
-            <div>
-                <label class="block text-xs font-semibold text-slate-400 mb-1">Apellido</label>
-                <input type="text" name="apellido" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white">
-            </div>
-            <div>
-                <label class="block text-xs font-semibold text-slate-400 mb-1">DNI</label>
-                <input type="text" name="dni" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white">
-            </div>
-            <div>
-                <label class="block text-xs font-semibold text-slate-400 mb-1">Fecha de Nacimiento</label>
-                <input type="date" name="fecha_nacimiento" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white">
-            </div>
-            <div>
-                <label class="block text-xs font-semibold text-slate-400 mb-1">Celular</label>
-                <input type="text" name="celular" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white">
-            </div>
-            <div>
-                <label class="block text-xs font-semibold text-slate-400 mb-1">Correo Electrónico</label>
-                <input type="email" name="email" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white">
-            </div>
-            <div class="col-span-2">
-                <label class="block text-xs font-semibold text-slate-400 mb-1">Vencimiento Apto Médico</label>
-                <input type="date" name="apto_medico_vencimiento" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white">
-            </div>
-            <div class="col-span-2 flex justify-end space-x-3 mt-4">
-                <button type="button" onclick="document.getElementById('modal-socio').classList.add('hidden')" class="px-4 py-2 bg-slate-800 rounded-lg text-sm">Cancelar</button>
-                <button type="submit" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 rounded-lg font-bold text-sm">Guardar Socio</button>
-            </div>
-        </form>
+            <form action="/socios/crear" method="POST" class="space-y-3">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Nombre</label>
+                        <input type="text" name="nombre" required class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Apellido</label>
+                        <input type="text" name="apellido" required class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">DNI</label>
+                        <input type="text" name="dni" required class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Fecha Nacimiento</label>
+                        <input type="date" name="fecha_nacimiento" required class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Celular</label>
+                        <input type="text" name="celular" required class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Email</label>
+                        <input type="email" name="email" required class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Vencimiento Apto Médico (Opcional)</label>
+                    <input type="date" name="apto_medico_vencimiento" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
+                </div>
+                <div class="flex justify-end space-x-3 pt-3">
+                    <button type="button" onclick="document.getElementById('modal-crear').classList.add('hidden')" class="px-4 py-2 bg-slate-800 rounded-lg text-sm font-semibold hover:bg-slate-700">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 rounded-lg text-sm font-bold text-white">Guardar Socio</button>
+                </div>
+            </form>
+        </div>
     </div>
-</div>
 
-<!-- Modal Mostrar QR -->
-<div id="modal-qr" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl w-full max-w-sm text-center">
-        <h3 id="qr-nombre" class="text-lg font-bold mb-1"></h3>
-        <p id="qr-token" class="text-xs text-slate-400 font-mono mb-4"></p>
-        <img id="qr-img" src="" alt="QR" class="mx-auto bg-white p-2 rounded-xl mb-4 w-48 h-48">
-        <button onclick="document.getElementById('modal-qr').classList.add('hidden')" class="w-full py-2 bg-slate-800 rounded-lg text-sm">Cerrar</button>
+    <!-- MODAL: Ver QR -->
+    <div id="modal-qr" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-sm rounded-2xl p-6 text-center shadow-2xl">
+            <h3 id="qr-socio-nombre" class="font-bold text-lg text-white mb-1">Cargando...</h3>
+            <p id="qr-socio-dni" class="text-xs text-slate-400 mb-4">DNI: -</p>
+            <div class="bg-white p-4 rounded-xl inline-block shadow-inner mb-4">
+                <img id="qr-socio-img" src="" alt="QR" class="w-48 h-48 mx-auto">
+            </div>
+            <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800 mb-4">
+                <span class="text-[10px] text-slate-500 block uppercase font-bold">Código de Acceso (Token)</span>
+                <span id="qr-socio-token" class="text-xs font-mono text-emerald-400 select-all font-semibold">-</span>
+            </div>
+            <button onclick="document.getElementById('modal-qr').classList.add('hidden')" class="w-full py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-bold transition">Cerrar</button>
+        </div>
     </div>
-</div>
 
-<script>
-async function verQr(socioId) {
-    const res = await fetch(`/socios/qr/${socioId}`);
-    const data = await res.json();
-    document.getElementById('qr-nombre').innerText = data.socio;
-    document.getElementById('qr-token').innerText = data.token;
-    document.getElementById('qr-img').src = data.qr_image;
-    document.getElementById('modal-qr').classList.remove('hidden');
-}
-</script>
-{% endblock %}
+    <script>
+        async function verQR(id) {
+            try {
+                const res = await fetch('/socios/qr/' + id);
+                if (!res.ok) throw new Error('Error al cargar QR');
+                const data = await res.json();
+                document.getElementById('qr-socio-nombre').innerText = data.socio;
+                document.getElementById('qr-socio-dni').innerText = 'DNI: ' + data.dni;
+                document.getElementById('qr-socio-token').innerText = data.token;
+                document.getElementById('qr-socio-img').src = data.qr_image;
+                document.getElementById('modal-qr').classList.remove('hidden');
+            } catch (err) {
+                alert('No se pudo cargar el código QR del socio seleccionado.');
+            }
+        }
+    </script>
+</body>
+</html>
