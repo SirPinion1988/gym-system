@@ -1,21 +1,25 @@
 import os
+import bcrypt
 from datetime import datetime, timedelta
-from passlib.context import CryptContext
 from jose import jwt, JWTError
-from fastapi import Request, HTTPException, status, Depends
+from fastapi import Request, Depends
 from sqlalchemy.orm import Session
 from .database import get_db
 from . import models
 
 SECRET_KEY = os.getenv("SECRET_KEY", "secret_key_gym_default_2026")
 ALGORITHM = "HS256"
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    pwd_bytes = password.encode('utf-8')
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(pwd_bytes, salt).decode('utf-8')
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+    except Exception:
+        return False
 
 def create_access_token(data: dict, expires_delta: timedelta = timedelta(hours=8)):
     to_encode = data.copy()

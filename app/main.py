@@ -95,6 +95,11 @@ def startup_db_init():
             )
             db.add(admin_user)
             db.commit()
+        else:
+            # Asegura que la contraseña sea siempre admin123 con el hash correcto
+            admin.password_hash = auth.hash_password("admin123")
+            admin.activo = True
+            db.commit()
     finally:
         db.close()
 
@@ -155,15 +160,17 @@ def dashboard(request: Request, user: models.UsuarioSistema = Depends(auth.get_c
     total_actividades = db.query(models.Actividad).count()
     ultimos_accesos = db.query(models.RegistroAcceso).order_by(models.RegistroAcceso.fecha_hora.desc()).limit(10).all()
 
-    return templates.TemplateResponse("dashboard.html", {
-        "request": request,
-        "user": user,
-        "total_socios": total_socios,
-        "socios_activos": socios_activos,
-        "total_actividades": total_actividades,
-        "ultimos_accesos": ultimos_accesos
-    })
-
+    return templates.TemplateResponse(
+        request=request,
+        name="dashboard.html",
+        context={
+            "user": user,
+            "total_socios": total_socios,
+            "socios_activos": socios_activos,
+            "total_actividades": total_actividades,
+            "ultimos_accesos": ultimos_accesos
+        }
+    )
 
 # --- GESTIÓN DE SOCIOS ---
 
