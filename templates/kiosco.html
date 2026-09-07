@@ -33,37 +33,47 @@
     </header>
 
     <main class="flex-1 p-6 max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- VENTA RÁPIDA -->
+        <!-- VENTA EN MOSTRADOR CON MERCADO PAGO INTEGRADO -->
         <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col">
-            <h2 class="text-lg font-bold text-emerald-400 mb-2">🛒 Venta en Mostrador</h2>
-            <p class="text-xs text-slate-400 mb-4">Descuenta stock en tiempo real.</p>
-            <form action="/productos/vender" method="POST" class="space-y-3">
+            <h2 class="text-lg font-bold text-emerald-400 mb-1 flex items-center gap-2">
+                <span>🛒</span> Venta en Mostrador
+            </h2>
+            <p class="text-xs text-slate-400 mb-4">Cobra en efectivo o muestra QR de Mercado Pago en pantalla.</p>
+
+            <form id="form-venta-kiosco" action="/productos/vender" method="POST" class="space-y-3">
                 <div>
                     <label class="block text-xs text-slate-400 mb-1">Producto</label>
-                    <select name="producto_id" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white">
+                    <select id="kiosco-producto-id" name="producto_id" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white">
                         {% for p in productos %}
-                        <option value="{{ p.id }}">{{ p.nombre }} - ${{ "%.2f"|format(p.precio_venta) }} (Stock: {{ p.stock }})</option>
+                        <option value="{{ p.id }}" data-precio="{{ p.precio_venta }}">
+                            {{ p.nombre }} - ${{ "%.2f"|format(p.precio_venta) }} (Stock: {{ p.stock }})
+                        </option>
                         {% endfor %}
                     </select>
                 </div>
+
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block text-xs text-slate-400 mb-1">Cantidad</label>
-                        <input type="number" name="cantidad" value="1" min="1" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-white">
+                        <input type="number" id="kiosco-cantidad" name="cantidad" value="1" min="1" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-white">
                     </div>
                     <div>
-                        <label class="block text-xs text-slate-400 mb-1">Cobro</label>
-                        <select name="metodo_pago" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-white">
+                        <label class="block text-xs text-slate-400 mb-1">Forma de Cobro</label>
+                        <select id="kiosco-metodo" name="metodo_pago" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-white">
                             <option value="EFECTIVO">Efectivo</option>
-                            <option value="MERCADOPAGO">Mercado Pago</option>
+                            <option value="MP_QR">Mercado Pago (QR en Pantalla)</option>
+                            <option value="TRANSFERENCIA">Transferencia</option>
                         </select>
                     </div>
                 </div>
-                <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-600 font-bold py-2.5 rounded-lg text-sm text-white transition shadow-lg shadow-emerald-500/20">
-                    Registrar Venta
+
+                <!-- Botón dinámico según el método elegido -->
+                <button type="button" id="btn-ejecutar-venta" onclick="procesarVenta()" class="w-full bg-emerald-500 hover:bg-emerald-600 font-bold py-2.5 rounded-lg text-sm text-white transition shadow-lg shadow-emerald-500/20">
+                    Confirmar Venta
                 </button>
             </form>
 
+            <!-- Carga de nuevo producto al stock -->
             <div class="mt-8 pt-6 border-t border-slate-800">
                 <h3 class="font-bold text-sm text-white mb-3">Ingresar Producto al Stock</h3>
                 <form action="/productos/crear" method="POST" class="space-y-2">
@@ -84,6 +94,7 @@
             </div>
         </div>
 
+        <!-- LISTADOS -->
         <div class="lg:col-span-2 space-y-6">
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
                 <h3 class="font-bold text-base text-white mb-3">Stock Actual</h3>
@@ -148,5 +159,63 @@
             </div>
         </div>
     </main>
+
+    <!-- MODAL QR MERCADO PAGO PARA EL CLIENTE -->
+    <div id="modal-mp-kiosco" class="hidden fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-sm rounded-3xl p-6 text-center shadow-2xl space-y-4">
+            <div>
+                <span class="text-[10px] uppercase font-bold tracking-wider text-sky-400">Mercado Pago</span>
+                <h3 id="mp-kiosco-prod-nom" class="font-black text-lg text-white">Cobro Kiosco</h3>
+                <p id="mp-kiosco-total" class="text-2xl font-mono font-bold text-emerald-400 mt-1">$0.00</p>
+                <p class="text-xs text-slate-400 mt-1">Pídele al cliente que escanee el código con su app de Mercado Pago:</p>
+            </div>
+
+            <div class="bg-white p-4 rounded-2xl inline-block shadow-inner">
+                <img id="mp-kiosco-qr-img" src="" alt="QR MP" class="w-48 h-48 mx-auto">
+            </div>
+
+            <div class="space-y-2 pt-2">
+                <button onclick="window.location.reload()" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-lg shadow-emerald-500/20">
+                    ✅ Pago Realizado (Cerrar)
+                </button>
+                <button onclick="document.getElementById('modal-mp-kiosco').classList.add('hidden')" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-400 text-xs py-2 rounded-xl transition">
+                    Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function procesarVenta() {
+            const metodo = document.getElementById('kiosco-metodo').value;
+            const productoId = document.getElementById('kiosco-producto-id').value;
+            const cantidad = document.getElementById('kiosco-cantidad').value;
+
+            if (metodo === 'MP_QR') {
+                try {
+                    const formData = new FormData();
+                    formData.append('producto_id', productoId);
+                    formData.append('cantidad', cantidad);
+
+                    const res = await fetch('/api/kiosco/crear-cobro-mp', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    if (!res.ok) throw new Error('Error al conectar con Mercado Pago');
+                    const data = await res.json();
+
+                    document.getElementById('mp-kiosco-prod-nom').innerText = data.producto + ' (x' + data.cantidad + ')';
+                    document.getElementById('mp-kiosco-total').innerText = '$' + Number(data.total).toFixed(2);
+                    document.getElementById('mp-kiosco-qr-img').src = data.qr_image;
+                    document.getElementById('modal-mp-kiosco').classList.remove('hidden');
+                } catch (err) {
+                    alert('No se pudo generar el QR de Mercado Pago. Verifica el stock o el token.');
+                }
+            } else {
+                // Si es efectivo o transferencia directa, envía el formulario clásico
+                document.getElementById('form-venta-kiosco').submit();
+            }
+        }
+    </script>
 </body>
 </html>

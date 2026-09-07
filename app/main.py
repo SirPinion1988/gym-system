@@ -25,7 +25,7 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Sistema de Gestión de Gimnasio - GymPro")
 
-MP_ACCESS_TOKEN = os.getenv("MP_ACCESS_TOKEN", "TEST-0000000000000000-000000-00000000000000000000000000000000-000000000")
+MP_ACCESS_TOKEN = os.getenv("MP_ACCESS_TOKEN", "TEST-0000000000000000-000000-000000-00000000000000000000000000000000-000000000")
 mp_sdk = mercadopago.SDK(MP_ACCESS_TOKEN)
 APP_PUBLIC_URL = os.getenv("APP_PUBLIC_URL", "https://gimnasio-app-0qhn.onrender.com")
 
@@ -488,8 +488,6 @@ def ver_qr_socio(socio_id: int, user: Optional[models.UsuarioSistema] = Depends(
     })
 
 
-# --- ENDPOINT PARA GENERAR LINK DE MERCADO PAGO Y WHATSAPP ---
-
 @app.get("/api/socio/link-pago/{socio_id}")
 def api_generar_link_pago(socio_id: int, user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user), db: Session = Depends(get_db)):
     if not user:
@@ -535,7 +533,6 @@ def api_generar_link_pago(socio_id: int, user: Optional[models.UsuarioSistema] =
     except Exception as e:
         print(f"Error generando MP link: {e}")
 
-    # Limpiar celular y armar enlace a WhatsApp
     cel_clean = "".join([c for c in socio.celular if c.isdigit()])
     mensaje = f"Hola {socio.nombre}! Te enviamos el link para abonar tu cuota de {plan.nombre} (${plan.precio:.2f}): {link_pago}"
     msg_encoded = urllib.parse.quote(mensaje)
@@ -629,7 +626,7 @@ def crear_clase(
     return RedirectResponse(url="/clases-profesores", status_code=status.HTTP_302_FOUND)
 
 
-# --- CAJA Y PLANES (CON EDICIÓN Y ELIMINACIÓN DE COBROS) ---
+# --- CAJA Y PLANES ---
 
 @app.get("/caja-pagos", response_class=HTMLResponse)
 def pagos_view(request: Request, user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user), db: Session = Depends(get_db)):
@@ -699,7 +696,6 @@ def registrar_pago(
     return RedirectResponse(url="/caja-pagos", status_code=status.HTTP_302_FOUND)
 
 
-# NUEVO: Editar un cobro mal cargado
 @app.post("/pagos/editar/{pago_id}")
 def editar_pago(
     pago_id: int,
@@ -722,7 +718,6 @@ def editar_pago(
     return RedirectResponse(url="/caja-pagos", status_code=status.HTTP_302_FOUND)
 
 
-# NUEVO: Eliminar / Anular un cobro erróneo
 @app.post("/pagos/eliminar/{pago_id}")
 def eliminar_pago(
     pago_id: int,
@@ -783,7 +778,7 @@ def editar_plan(
     return RedirectResponse(url="/caja-pagos", status_code=status.HTTP_302_FOUND)
 
 
-# --- KIOSCO ---
+# --- MÓDULO KIOSCO (CONEXIÓN OFICIAL MERCADO PAGO QR) ---
 
 @app.get("/kiosco", response_class=HTMLResponse)
 def kiosco_view(request: Request, user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user), db: Session = Depends(get_db)):
@@ -824,6 +819,7 @@ def crear_producto(
     return RedirectResponse(url="/kiosco", status_code=status.HTTP_302_FOUND)
 
 
+# Registrar venta tradicional en mostrador
 @app.post("/productos/vender")
 def vender_producto(
     producto_id: int = Form(...),
@@ -844,6 +840,60 @@ def vender_producto(
     db.add(venta)
     db.commit()
     return RedirectResponse(url="/kiosco", status_code=status.HTTP_302_FOUND)
+
+
+# NUEVO: Generar cobro Mercado Pago con QR en pantalla para el Kiosco
+@app.post("/api/kiosco/crear-cobro-mp")
+def api_kiosco_cobro_mp(
+    producto_id: int = Form(...),
+    cantidad: int = Form(...),
+    user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    if not user:
+        raise HTTPException(status_code=401)
+    prod = db.query(models.Producto).get(producto_id)
+    if not prod or prod.stock < cantidad:
+        raise HTTPException(status_code=400, detail="Stock insuficiente.")
+
+    total = float(prod.precio_venta * cantidad)
+    external_ref = f"KIOSCO-{prod.id}-{cantidad}-{int(datetime.utcnow().timestamp())}"
+
+    link_pago = "#"
+    qr_b64 = None
+    try:
+        preference_data = {
+            "items": [
+                {
+                    "title": f"Kiosco: {prod.nombre} (x{cantidad})",
+                    "quantity": 1,
+                    "unit_price": total,
+                    "currency_id": "ARS"
+                }
+            ],
+            "external_reference": external_ref,
+            "notification_url": f"{APP_PUBLIC_URL}/api/pagos/webhook",
+            "back_urls": {
+                "success": f"{APP_PUBLIC_URL}/kiosco?pago_exitoso=1",
+                "failure": f"{APP_PUBLIC_URL}/kiosco?error_pago=1",
+                "pending": f"{APP_PUBLIC_URL}/kiosco?pago_pendiente=1"
+            },
+            "auto_return": "approved"
+        }
+        pref_result = mp_sdk.preference().create(preference_data)
+        link_pago = pref_result["response"].get("init_point")
+        qr_b64 = generar_qr_base64(link_pago)
+    except Exception as e:
+        print(f"Error generando cobro MP kiosco: {e}")
+
+    return JSONResponse({
+        "producto": prod.nombre,
+        "cantidad": cantidad,
+        "total": total,
+        "link_pago": link_pago,
+        "qr_image": f"data:image/png;base64,{qr_b64}" if qr_b64 else None,
+        "external_reference": external_ref
+    })
 
 
 # --- BALANCE ---
@@ -1055,7 +1105,7 @@ def socio_credencial_view(socio_id: int, request: Request, db: Session = Depends
     })
 
 
-# --- WEBHOOK MP ---
+# --- WEBHOOK MP (SOPORTA PAGOS DE CUOTAS Y PAGOS DE KIOSCO) ---
 
 @app.post("/api/pagos/webhook")
 async def mercadopago_webhook(request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
@@ -1079,6 +1129,30 @@ async def mercadopago_webhook(request: Request, background_tasks: BackgroundTask
                 monto = float(resp.get("transaction_amount", 0.0))
                 payment_id_str = str(data_id)
 
+                # 1. Pago de Kiosco vía Mercado Pago
+                if ext_ref.startswith("KIOSCO-"):
+                    parts = ext_ref.split("-")
+                    producto_id = int(parts[1])
+                    cantidad = int(parts[2])
+
+                    # Evitar registrar doble
+                    venta_existente = db.query(models.VentaProducto).filter_by(metodo_pago=f"MP-{payment_id_str}").first()
+                    if not venta_existente:
+                        prod = db.query(models.Producto).get(producto_id)
+                        if prod and prod.stock >= cantidad:
+                            prod.stock -= cantidad
+                            nueva_venta = models.VentaProducto(
+                                producto_id=prod.id,
+                                cantidad=cantidad,
+                                total=monto,
+                                metodo_pago=f"MP-{payment_id_str}"
+                            )
+                            db.add(nueva_venta)
+                            db.commit()
+                            print(f"[KIOSCO MP] Venta de {prod.nombre} (x{cantidad}) confirmada.")
+                    return JSONResponse({"status": "kiosco_processed"})
+
+                # 2. Pago de Cuotas de Socios
                 pago_existente = db.query(models.Pago).filter_by(external_payment_id=payment_id_str).first()
                 if pago_existente:
                     return JSONResponse({"status": "already_processed"})
