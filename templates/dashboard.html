@@ -3,78 +3,210 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de Control | GymPro</title>
+    <title>Dashboard Principal | GymPro</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
-    <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between">
+    <!-- Navbar Superior Completa -->
+    <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between sticky top-0 z-40">
         <div class="flex items-center space-x-6">
-            <span class="text-xl font-bold tracking-tight text-emerald-400">GymPro</span>
-            <nav class="hidden md:flex space-x-4 text-sm font-medium">
+            <div class="flex items-center space-x-2">
+                <div class="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center font-black text-emerald-400 text-sm">
+                    GP
+                </div>
+                <span class="text-xl font-bold tracking-tight text-white">Gym<span class="text-emerald-400">Pro</span></span>
+            </div>
+            <nav class="hidden lg:flex space-x-4 text-sm font-medium">
                 <a href="/dashboard" class="text-emerald-400 border-b-2 border-emerald-500 pb-1">Dashboard</a>
                 <a href="/socios" class="text-slate-400 hover:text-white transition">Socios</a>
                 <a href="/clases-profesores" class="text-slate-400 hover:text-white transition">Clases y Profes</a>
                 <a href="/caja-pagos" class="text-slate-400 hover:text-white transition">Caja / Cuotas</a>
                 <a href="/kiosco" class="text-slate-400 hover:text-white transition">Kiosco</a>
+                <a href="/balance" class="text-slate-400 hover:text-white transition">Balance & Reportes</a>
                 <a href="/molinete" class="text-slate-400 hover:text-white transition">Molinete</a>
             </nav>
         </div>
         <div class="flex items-center space-x-4">
-            <span class="text-xs text-slate-400">{{ user.nombre }}</span>
-            <a href="/logout" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg text-rose-400">Cerrar Sesión</a>
+            <span class="text-xs text-slate-400 hidden sm:inline">{{ user.nombre }} ({{ user.rol }})</span>
+            <a href="/logout" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg text-rose-400 transition font-semibold">
+                Cerrar Sesión
+            </a>
         </div>
     </header>
 
+    <!-- Menú Responsive para móviles -->
+    <nav class="lg:hidden bg-slate-900 border-b border-slate-800 px-4 py-2.5 flex overflow-x-auto space-x-4 text-xs font-medium scrollbar-none">
+        <a href="/dashboard" class="text-emerald-400 font-bold whitespace-nowrap">Dashboard</a>
+        <a href="/socios" class="text-slate-400 whitespace-nowrap">Socios</a>
+        <a href="/clases-profesores" class="text-slate-400 whitespace-nowrap">Clases y Profes</a>
+        <a href="/caja-pagos" class="text-slate-400 whitespace-nowrap">Caja / Cuotas</a>
+        <a href="/kiosco" class="text-slate-400 whitespace-nowrap">Kiosco</a>
+        <a href="/balance" class="text-slate-400 whitespace-nowrap">Balance & Reportes</a>
+        <a href="/molinete" class="text-slate-400 whitespace-nowrap">Molinete</a>
+    </nav>
+
+    <!-- Contenido Principal -->
     <main class="flex-1 p-6 max-w-7xl mx-auto w-full space-y-6">
-        <!-- Métricas Principales -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
-                <span class="text-xs text-slate-400 uppercase font-bold">Socios Totales</span>
-                <div class="text-2xl font-black text-white mt-1">{{ total_socios }}</div>
+        <!-- Saludo y accesos rápidos -->
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+                <h1 class="text-2xl font-black text-white">Panel de Control General</h1>
+                <p class="text-xs text-slate-400">Resumen operativo, estado del gimnasio y accesos en tiempo real.</p>
             </div>
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
-                <span class="text-xs text-slate-400 uppercase font-bold">Cuotas al Día</span>
-                <div class="text-2xl font-black text-emerald-400 mt-1">{{ socios_activos }}</div>
-            </div>
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
-                <span class="text-xs text-slate-400 uppercase font-bold">Profesores</span>
-                <div class="text-2xl font-black text-indigo-400 mt-1">{{ total_profes }}</div>
-            </div>
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
-                <span class="text-xs text-slate-400 uppercase font-bold">Clases Activas</span>
-                <div class="text-2xl font-black text-amber-400 mt-1">{{ total_clases }}</div>
+            <div class="flex flex-wrap gap-2">
+                <a href="/socios" class="bg-emerald-600 hover:bg-emerald-500 px-3.5 py-2 rounded-xl text-xs font-bold text-white transition flex items-center gap-1.5 shadow-lg shadow-emerald-600/20">
+                    <span>+</span> Nuevo Socio
+                </a>
+                <a href="/caja-pagos" class="bg-indigo-600 hover:bg-indigo-500 px-3.5 py-2 rounded-xl text-xs font-bold text-white transition flex items-center gap-1.5 shadow-lg shadow-indigo-600/20">
+                    <span>💵</span> Cobrar Cuota
+                </a>
+                <a href="/kiosco" class="bg-slate-800 hover:bg-slate-700 px-3.5 py-2 rounded-xl text-xs font-bold text-slate-200 transition flex items-center gap-1.5">
+                    <span>🛒</span> Venta Kiosco
+                </a>
             </div>
         </div>
 
-        <!-- Accesos al Molinete -->
+        <!-- Tarjetas de Métricas -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
+                <div class="flex justify-between items-center text-slate-400 mb-2">
+                    <span class="text-xs uppercase font-bold tracking-wider">Socios Totales</span>
+                    <span class="text-lg">👥</span>
+                </div>
+                <div class="text-3xl font-black text-white">{{ total_socios }}</div>
+                <div class="text-[11px] text-slate-500 mt-1">Registrados en base de datos</div>
+            </div>
+
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
+                <div class="flex justify-between items-center text-emerald-400 mb-2">
+                    <span class="text-xs uppercase font-bold tracking-wider">Cuotas al Día</span>
+                    <span class="text-lg">✅</span>
+                </div>
+                <div class="text-3xl font-black text-emerald-400">{{ socios_activos }}</div>
+                <div class="text-[11px] text-emerald-500/70 mt-1">Acceso habilitado al molinete</div>
+            </div>
+
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
+                <div class="flex justify-between items-center text-indigo-400 mb-2">
+                    <span class="text-xs uppercase font-bold tracking-wider">Profesores</span>
+                    <span class="text-lg">🏋️‍♂️</span>
+                </div>
+                <div class="text-3xl font-black text-indigo-400">{{ total_profes }}</div>
+                <div class="text-[11px] text-slate-500 mt-1">Entrenadores en planta</div>
+            </div>
+
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
+                <div class="flex justify-between items-center text-amber-400 mb-2">
+                    <span class="text-xs uppercase font-bold tracking-wider">Clases Activas</span>
+                    <span class="text-lg">📅</span>
+                </div>
+                <div class="text-3xl font-black text-amber-400">{{ total_clases }}</div>
+                <div class="text-[11px] text-slate-500 mt-1">Actividades programadas</div>
+            </div>
+        </div>
+
+        <!-- Módulos de Acceso Rápido Directo -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <a href="/balance" class="bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-emerald-500/50 rounded-2xl p-4 transition group">
+                <div class="flex items-center space-x-3">
+                    <div class="p-3 bg-emerald-500/10 rounded-xl text-emerald-400 text-xl group-hover:scale-110 transition-transform">
+                        📊
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-sm text-white">Balance & Finanzas</h3>
+                        <p class="text-xs text-slate-400">Ver recaudación, caja y reportes en Excel/CSV.</p>
+                    </div>
+                </div>
+            </a>
+
+            <a href="/molinete" class="bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-indigo-500/50 rounded-2xl p-4 transition group">
+                <div class="flex items-center space-x-3">
+                    <div class="p-3 bg-indigo-500/10 rounded-xl text-indigo-400 text-xl group-hover:scale-110 transition-transform">
+                        🔄
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-sm text-white">Simulador Molinete</h3>
+                        <p class="text-xs text-slate-400">Probar lector QR y validación de entrada.</p>
+                    </div>
+                </div>
+            </a>
+
+            <a href="/socio/login" target="_blank" class="bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-sky-500/50 rounded-2xl p-4 transition group">
+                <div class="flex items-center space-x-3">
+                    <div class="p-3 bg-sky-500/10 rounded-xl text-sky-400 text-xl group-hover:scale-110 transition-transform">
+                        📱
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-sm text-white">Portal del Socio</h3>
+                        <p class="text-xs text-slate-400">Vista del carnet móvil y botón de pago online.</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <!-- Tabla de Últimos Pasos por Molinete -->
         <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
-            <h2 class="text-lg font-bold mb-4">Últimos Pasos por Molinete</h2>
+            <div class="flex justify-between items-center mb-4">
+                <div>
+                    <h2 class="text-lg font-bold text-white">Auditoría en Tiempo Real: Molinete</h2>
+                    <p class="text-xs text-slate-400">Últimos 10 registros de acceso con tarjeta o código QR.</p>
+                </div>
+                <a href="/molinete" class="text-xs text-indigo-400 hover:underline font-semibold">Abrir simulador &rarr;</a>
+            </div>
+
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-sm">
-                    <thead class="bg-slate-950 text-slate-400 text-xs uppercase">
+                    <thead class="bg-slate-950/60 text-slate-400 text-xs uppercase border-b border-slate-800">
                         <tr>
-                            <th class="p-3">Hora</th>
-                            <th class="p-3">Socio</th>
-                            <th class="p-3">Estado</th>
-                            <th class="p-3">Detalle</th>
+                            <th class="p-3.5">Hora / Fecha</th>
+                            <th class="p-3.5">Socio</th>
+                            <th class="p-3.5">Resultado</th>
+                            <th class="p-3.5">Detalle / Diagnóstico</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-800">
                         {% for a in ultimos_accesos %}
-                        <tr class="hover:bg-slate-800/30">
-                            <td class="p-3 font-mono text-xs text-slate-400">{{ a.fecha_hora.strftime('%H:%M:%S') }}</td>
-                            <td class="p-3 font-semibold">{{ a.socio.nombre }} {{ a.socio.apellido }}</td>
-                            <td class="p-3">
+                        <tr class="hover:bg-slate-800/40 transition">
+                            <td class="p-3.5 font-mono text-xs text-slate-400">
+                                {{ a.fecha_hora.strftime('%d/%m/%Y %H:%M:%S') }}
+                            </td>
+                            <td class="p-3.5">
+                                <span class="font-bold text-white">{{ a.socio.nombre }} {{ a.socio.apellido }}</span>
+                                <span class="text-xs text-slate-500 block">DNI: {{ a.socio.dni }}</span>
+                            </td>
+                            <td class="p-3.5">
                                 {% if a.resultado == 'PERMITIDO' %}
-                                <span class="px-2 py-0.5 rounded text-xs bg-emerald-950 text-emerald-400 border border-emerald-800 font-bold">PERMITIDO</span>
+                                    <span class="px-2.5 py-1 rounded-full text-xs font-black bg-emerald-950 text-emerald-400 border border-emerald-800 flex items-center gap-1.5 w-fit">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                                        PERMITIDO
+                                    </span>
                                 {% else %}
-                                <span class="px-2 py-0.5 rounded text-xs bg-rose-950 text-rose-400 border border-rose-800 font-bold">DENEGADO</span>
+                                    <span class="px-2.5 py-1 rounded-full text-xs font-black bg-rose-950 text-rose-400 border border-rose-800 flex items-center gap-1.5 w-fit">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
+                                        DENEGADO
+                                    </span>
                                 {% endif %}
                             </td>
-                            <td class="p-3 text-xs text-slate-400">{{ a.motivo }}</td>
+                            <td class="p-3.5 text-xs text-slate-300">
+                                {% if a.motivo == 'OK' or a.motivo == 'ACCESO_OK' %}
+                                    <span class="text-emerald-400 font-medium">Cuota y apto al día</span>
+                                {% elif a.motivo == 'CUOTA_VENCIDA' %}
+                                    <span class="text-rose-400 font-medium">Cuota impaga / vencida</span>
+                                {% elif a.motivo == 'APTO_MEDICO_VENCIDO' %}
+                                    <span class="text-amber-400 font-medium">Apto médico vencido</span>
+                                {% elif a.motivo == 'BLOQUEO_ADMINISTRATIVO' or a.motivo == 'BLOQUEADO_MANUAL' %}
+                                    <span class="text-rose-400 font-medium">Bloqueado por recepción</span>
+                                {% else %}
+                                    <span>{{ a.motivo }}</span>
+                                {% endif %}
+                            </td>
                         </tr>
                         {% else %}
-                        <tr><td colspan="4" class="p-4 text-center text-slate-500 text-xs">Sin registros aún.</td></tr>
+                        <tr>
+                            <td colspan="4" class="p-8 text-center text-slate-500 text-sm">
+                                Aún no se registraron ingresos por el molinete hoy.
+                            </td>
+                        </tr>
                         {% endfor %}
                     </tbody>
                 </table>

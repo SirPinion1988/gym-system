@@ -9,7 +9,7 @@ class UsuarioSistema(Base):
     username = Column(String(50), unique=True, index=True, nullable=False)
     password_hash = Column(String(255), nullable=False)
     nombre = Column(String(100), nullable=False)
-    rol = Column(String(20), default="OPERADOR") # ADMIN, OPERADOR
+    rol = Column(String(20), default="OPERADOR")
     activo = Column(Boolean, default=True)
 
 class Plan(Base):
@@ -36,8 +36,8 @@ class Actividad(Base):
     __tablename__ = "actividades"
     id = Column(Integer, primary_key=True, index=True)
     nombre = Column(String(100), nullable=False)
-    dias = Column(String(100), nullable=False) # Lunes, Miercoles, Viernes
-    horario = Column(String(50), nullable=False) # 18:00 a 19:00
+    dias = Column(String(100), nullable=False)
+    horario = Column(String(50), nullable=False)
     cupo_maximo = Column(Integer, default=20)
     profesor_id = Column(Integer, ForeignKey("profesores.id"), nullable=True)
     profesor = relationship("Profesor", back_populates="clases")
@@ -58,6 +58,12 @@ class Socio(Base):
     fecha_vencimiento_cuota = Column(Date, nullable=True)
     plan_id = Column(Integer, ForeignKey("planes.id"), nullable=True)
     bloqueado_manual = Column(Boolean, default=False)
+    
+    # Datos de Tarjeta Vinculada (Débito Automático)
+    tarjeta_tokenizada = Column(Boolean, default=False)
+    tarjeta_marca = Column(String(30), nullable=True) # VISA, MASTERCARD
+    tarjeta_ultimos4 = Column(String(4), nullable=True)
+    
     creado_en = Column(DateTime, default=datetime.utcnow)
 
     plan = relationship("Plan")
@@ -69,7 +75,7 @@ class Pago(Base):
     id = Column(Integer, primary_key=True, index=True)
     socio_id = Column(Integer, ForeignKey("socios.id"), nullable=False)
     monto = Column(Float, nullable=False)
-    metodo_pago = Column(String(50), default="EFECTIVO") # EFECTIVO, MERCADOPAGO, TRANSFERENCIA
+    metodo_pago = Column(String(50), default="EFECTIVO") # EFECTIVO, MERCADOPAGO, TARJETA_VINCULADA, TRANSFERENCIA
     concepto = Column(String(150), default="Pago de Cuota")
     fecha_pago = Column(DateTime, default=datetime.utcnow)
     socio = relationship("Socio", back_populates="pagos")
@@ -78,7 +84,7 @@ class Producto(Base):
     __tablename__ = "productos"
     id = Column(Integer, primary_key=True, index=True)
     nombre = Column(String(100), nullable=False)
-    categoria = Column(String(50), default="BEBIDAS") # BEBIDAS, SUPLEMENTOS, SNACKS
+    categoria = Column(String(50), default="BEBIDAS")
     precio_venta = Column(Float, nullable=False)
     stock = Column(Integer, default=0)
     activo = Column(Boolean, default=True)

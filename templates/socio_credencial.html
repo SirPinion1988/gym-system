@@ -9,7 +9,6 @@
 <body class="bg-slate-950 text-slate-100 min-h-screen p-4 flex flex-col items-center justify-center">
 
     <div class="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl relative overflow-hidden">
-        <!-- Encabezado Carnet -->
         <div class="flex justify-between items-center mb-4">
             <div>
                 <span class="text-[10px] uppercase tracking-wider text-emerald-400 font-bold">Gimnasio Fitness</span>
@@ -21,7 +20,6 @@
             </div>
         </div>
 
-        <!-- Banner de Estado de Acceso -->
         {% if habilitado %}
             <div class="bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-xs font-bold px-3 py-2 rounded-xl text-center mb-4 flex items-center justify-center gap-2">
                 <span>🔓</span> ACCESO HABILITADO AL MOLINETE
@@ -32,12 +30,10 @@
             </div>
         {% endif %}
 
-        <!-- Código QR -->
         <div class="bg-white p-4 rounded-2xl mx-auto mb-4 text-center shadow-inner">
             <img src="{{ qr_image }}" alt="Código QR Socio" class="w-48 h-48 mx-auto">
         </div>
 
-        <!-- Información del Plan Asignado -->
         <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4 mb-4 space-y-2">
             <div class="flex justify-between items-center text-xs">
                 <span class="text-slate-400">Plan contratado:</span>
@@ -49,7 +45,7 @@
             </div>
             <div class="flex justify-between items-center text-xs">
                 <span class="text-slate-400">Vencimiento:</span>
-                <span class="font-mono text-slate-300">{{ socio.fecha_vencimiento_cuota.strftime('%d/%m/%Y') if socio.fecha_vencimiento_cuota else 'Pendiente de pago' }}</span>
+                <span class="font-mono text-slate-300">{{ socio.fecha_vencimiento_cuota.strftime('%d/%m/%Y') if socio.fecha_vencimiento_cuota else 'Pendiente' }}</span>
             </div>
             <div class="flex justify-between items-center text-xs">
                 <span class="text-slate-400">Apto médico:</span>
@@ -59,16 +55,27 @@
             </div>
         </div>
 
-        <!-- Botón de Pago según el Plan Asignado -->
+        <!-- MÉTODOS DE PAGO DISPONIBLES -->
         <div class="space-y-2">
+            {% if socio.tarjeta_tokenizada %}
+                <!-- Cobro directo con Tarjeta Vinculada -->
+                <form action="/socio/pagar-cuota/{{ socio.id }}" method="POST">
+                    <input type="hidden" name="metodo" value="TARJETA_VINCULADA">
+                    <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl text-sm transition flex items-center justify-center gap-2 shadow-lg">
+                        <span>💳</span> Debitar de {{ socio.tarjeta_marca }} (****{{ socio.tarjeta_ultimos4 }})
+                    </button>
+                </form>
+            {% endif %}
+
+            <!-- Pago mediante Mercado Pago -->
             <form action="/socio/pagar-cuota/{{ socio.id }}" method="POST">
                 <input type="hidden" name="metodo" value="MERCADOPAGO">
-                <button type="submit" class="w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 rounded-xl text-sm transition flex items-center justify-center gap-2 shadow-lg shadow-sky-500/20">
-                    <span>💳</span> Pagar Cuota: ${{ plan.precio if plan else '0' }}
+                <button type="submit" class="w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 rounded-xl text-sm transition flex items-center justify-center gap-2 shadow-lg">
+                    <span>📱</span> Pagar con Mercado Pago / QR (${{ plan.precio if plan else '0' }})
                 </button>
             </form>
             <p class="text-[10px] text-center text-slate-500">
-                Al pagar, tu acceso en el molinete se renovará automáticamente por 30 días.
+                Al impactar el pago, el molinete se habilita automáticamente por 30 días.
             </p>
         </div>
 

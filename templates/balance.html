@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Balance y Reportes | GymPro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
+    <!-- Navbar -->
+    <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between">
+        <div class="flex items-center space-x-6">
+            <span class="text-xl font-bold tracking-tight text-emerald-400">GymPro</span>
+            <nav class="hidden md:flex space-x-4 text-sm font-medium">
+                <a href="/dashboard" class="text-slate-400 hover:text-white transition">Dashboard</a>
+                <a href="/socios" class="text-slate-400 hover:text-white transition">Socios</a>
+                <a href="/clases-profesores" class="text-slate-400 hover:text-white transition">Clases y Profes</a>
+                <a href="/caja-pagos" class="text-slate-400 hover:text-white transition">Caja / Cuotas</a>
+                <a href="/kiosco" class="text-slate-400 hover:text-white transition">Kiosco</a>
+                <a href="/balance" class="text-emerald-400 border-b-2 border-emerald-500 pb-1">Balance & Reportes</a>
+                <a href="/molinete" class="text-slate-400 hover:text-white transition">Molinete</a>
+            </nav>
+        </div>
+        <a href="/logout" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg text-rose-400">Cerrar Sesión</a>
+    </header>
+
+    <main class="flex-1 p-6 max-w-7xl mx-auto w-full space-y-6">
+        <!-- Encabezado con Botones de Exportación CSV/Excel -->
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+                <h1 class="text-2xl font-black">Balance Contable y Auditoría</h1>
+                <p class="text-xs text-slate-400">Ingresos diarios, mensuales y control de vencimientos.</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <a href="/exportar/pagos-csv" class="bg-emerald-600 hover:bg-emerald-500 px-3 py-2 rounded-xl text-xs font-bold text-white transition flex items-center gap-1.5">
+                    📥 Bajar Cobros (CSV)
+                </a>
+                <a href="/exportar/ventas-csv" class="bg-indigo-600 hover:bg-indigo-500 px-3 py-2 rounded-xl text-xs font-bold text-white transition flex items-center gap-1.5">
+                    📥 Bajar Kiosco (CSV)
+                </a>
+                <a href="/exportar/socios-csv" class="bg-slate-800 hover:bg-slate-700 px-3 py-2 rounded-xl text-xs font-bold text-white transition flex items-center gap-1.5">
+                    📥 Padrón Socios (CSV)
+                </a>
+            </div>
+        </div>
+
+        <!-- Tarjetas de Balance -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+                <span class="text-xs text-slate-400 uppercase font-bold">Facturación Hoy</span>
+                <div class="text-3xl font-black text-white mt-1">${{ "%.2f"|format(total_hoy) }}</div>
+                <div class="text-[11px] text-slate-400 mt-2 flex justify-between">
+                    <span>Cuotas: ${{ "%.2f"|format(cuotas_hoy) }}</span>
+                    <span>Kiosco: ${{ "%.2f"|format(kiosco_hoy) }}</span>
+                </div>
+            </div>
+
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+                <span class="text-xs text-slate-400 uppercase font-bold">Acumulado Mes Actual</span>
+                <div class="text-3xl font-black text-emerald-400 mt-1">${{ "%.2f"|format(total_mes) }}</div>
+                <div class="text-[11px] text-slate-400 mt-2 text-slate-500">
+                    Calculado del 1ro a la fecha
+                </div>
+            </div>
+
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+                <span class="text-xs text-slate-400 uppercase font-bold">Total Facturado en el Año</span>
+                <div class="text-3xl font-black text-indigo-400 mt-1">${{ "%.2f"|format(total_anio) }}</div>
+                <div class="text-[11px] text-slate-400 mt-2 text-slate-500">
+                    Ejercicio Contable Activo
+                </div>
+            </div>
+        </div>
+
+        <!-- SECCIÓN DE VENCIMIENTOS -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Vencen en los próximos 7 días -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-bold text-amber-400 flex items-center gap-2">
+                        <span>⚠️</span> Vencen en los Próximos 7 Días
+                    </h2>
+                    <span class="text-xs bg-amber-950 text-amber-300 font-bold px-2 py-0.5 rounded">{{ proximos_vencer|length }}</span>
+                </div>
+                <div class="overflow-y-auto max-h-72">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-slate-950 text-slate-400 text-xs uppercase">
+                            <tr>
+                                <th class="p-3">Socio</th>
+                                <th class="p-3">Plan</th>
+                                <th class="p-3 text-right">Vencimiento</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-800">
+                            {% for s in proximos_vencer %}
+                            <tr class="hover:bg-slate-800/30">
+                                <td class="p-3">
+                                    <div class="font-semibold">{{ s.nombre }} {{ s.apellido }}</div>
+                                    <div class="text-xs text-slate-500">{{ s.celular }}</div>
+                                </td>
+                                <td class="p-3 text-xs">{{ s.plan.nombre if s.plan else '-' }}</td>
+                                <td class="p-3 text-right font-mono font-bold text-amber-400 text-xs">
+                                    {{ s.fecha_vencimiento_cuota.strftime('%d/%m/%Y') }}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="3" class="p-4 text-center text-slate-500 text-xs">No hay vencimientos inmediatos.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Socios ya Vencidos (Inhabilitados) -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-bold text-rose-400 flex items-center gap-2">
+                        <span>🚫</span> Cuotas Vencidas (Acceso Denegado)
+                    </h2>
+                    <span class="text-xs bg-rose-950 text-rose-300 font-bold px-2 py-0.5 rounded">{{ vencidos|length }}</span>
+                </div>
+                <div class="overflow-y-auto max-h-72">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-slate-950 text-slate-400 text-xs uppercase">
+                            <tr>
+                                <th class="p-3">Socio</th>
+                                <th class="p-3">Plan</th>
+                                <th class="p-3 text-right">Caducó el</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-800">
+                            {% for s in vencidos %}
+                            <tr class="hover:bg-slate-800/30">
+                                <td class="p-3">
+                                    <div class="font-semibold">{{ s.nombre }} {{ s.apellido }}</div>
+                                    <div class="text-xs text-slate-500">{{ s.celular }}</div>
+                                </td>
+                                <td class="p-3 text-xs">{{ s.plan.nombre if s.plan else '-' }}</td>
+                                <td class="p-3 text-right font-mono font-bold text-rose-400 text-xs">
+                                    {{ s.fecha_vencimiento_cuota.strftime('%d/%m/%Y') if s.fecha_vencimiento_cuota else 'Sin Cuota' }}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="3" class="p-4 text-center text-slate-500 text-xs">Todos los socios tienen su cuota al día.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+</body>
+</html>
