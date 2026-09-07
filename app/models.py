@@ -29,6 +29,8 @@ class Profesor(Base):
     dni = Column(String(20), unique=True, nullable=False)
     celular = Column(String(30), nullable=False)
     especialidad = Column(String(100), nullable=True)
+    sueldo = Column(Float, default=0.0)
+    tipo_sueldo = Column(String(30), default="MENSUAL") # MENSUAL, POR_HORA
     activo = Column(Boolean, default=True)
     clases = relationship("Actividad", back_populates="profesor")
 
@@ -59,15 +61,16 @@ class Socio(Base):
     plan_id = Column(Integer, ForeignKey("planes.id"), nullable=True)
     bloqueado_manual = Column(Boolean, default=False)
     
-    # Datos de Tarjeta Vinculada (Débito Automático)
+    # Débito Automático / Tarjeta
     tarjeta_tokenizada = Column(Boolean, default=False)
-    tarjeta_marca = Column(String(30), nullable=True) # VISA, MASTERCARD
+    tarjeta_marca = Column(String(30), nullable=True)
     tarjeta_ultimos4 = Column(String(4), nullable=True)
     
     creado_en = Column(DateTime, default=datetime.utcnow)
 
     plan = relationship("Plan")
     pagos = relationship("Pago", back_populates="socio")
+    facturas = relationship("Factura", back_populates="socio")
     accesos = relationship("RegistroAcceso", back_populates="socio")
 
 class Pago(Base):
@@ -75,10 +78,29 @@ class Pago(Base):
     id = Column(Integer, primary_key=True, index=True)
     socio_id = Column(Integer, ForeignKey("socios.id"), nullable=False)
     monto = Column(Float, nullable=False)
-    metodo_pago = Column(String(50), default="EFECTIVO") # EFECTIVO, MERCADOPAGO, TARJETA_VINCULADA, TRANSFERENCIA
+    metodo_pago = Column(String(50), default="EFECTIVO")
     concepto = Column(String(150), default="Pago de Cuota")
+    external_payment_id = Column(String(100), unique=True, nullable=True)
     fecha_pago = Column(DateTime, default=datetime.utcnow)
     socio = relationship("Socio", back_populates="pagos")
+    factura = relationship("Factura", back_populates="pago", uselist=False)
+
+class Factura(Base):
+    __tablename__ = "facturas"
+    id = Column(Integer, primary_key=True, index=True)
+    pago_id = Column(Integer, ForeignKey("pagos.id"), nullable=False)
+    socio_id = Column(Integer, ForeignKey("socios.id"), nullable=False)
+    tipo_comprobante = Column(String(10), default="C")
+    punto_venta = Column(Integer, default=1)
+    numero_comprobante = Column(Integer, nullable=False)
+    cae = Column(String(50), nullable=False)
+    cae_vencimiento = Column(Date, nullable=False)
+    monto_total = Column(Float, nullable=False)
+    fecha_emision = Column(DateTime, default=datetime.utcnow)
+    enviada_por_mail = Column(Boolean, default=False)
+
+    socio = relationship("Socio", back_populates="facturas")
+    pago = relationship("Pago", back_populates="factura")
 
 class Producto(Base):
     __tablename__ = "productos"

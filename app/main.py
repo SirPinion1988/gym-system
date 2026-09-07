@@ -8,22 +8,28 @@ from pathlib import Path
 from datetime import date, datetime, timedelta
 from typing import Optional
 
-from fastapi import FastAPI, Depends, Request, Form, HTTPException, status, Response
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi import FastAPI, Depends, Request, Form, HTTPException, status, Response, BackgroundTasks
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
-from .database import engine, Base, get_db
-from . import models, auth
+import mercadopago
 
-# Asegurar tablas base
+from .database import engine, Base, get_db
+from . import models, auth, billing
+
+# Creación de tablas
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Sistema de Gestión de Gimnasio")
+app = FastAPI(title="Sistema de Gestión de Gimnasio - GymPro")
 
-# --- RESOLUCIÓN INTELIGENTE DE CARPETAS ---
+# Inicialización SDK Mercado Pago
+MP_ACCESS_TOKEN = os.getenv("MP_ACCESS_TOKEN", "TEST-0000000000000000-000000-00000000000000000000000000000000-000000000")
+mp_sdk = mercadopago.SDK(MP_ACCESS_TOKEN)
+APP_PUBLIC_URL = os.getenv("APP_PUBLIC_URL", "https://gimnasio-app-0qhn.onrender.com")
+
 CURRENT_FILE = Path(__file__).resolve()
 APP_DIR = CURRENT_FILE.parent
 ROOT_DIR = APP_DIR.parent
@@ -60,7 +66,6 @@ def startup_db_init():
     from .database import SessionLocal
     db = SessionLocal()
     try:
-        # Administrador por defecto
         admin = db.query(models.UsuarioSistema).filter_by(username="admin").first()
         if not admin:
             admin_user = models.UsuarioSistema(
@@ -77,7 +82,6 @@ def startup_db_init():
             admin.activo = True
             db.commit()
 
-        # Planes base iniciales
         if db.query(models.Plan).count() == 0:
             db.add_all([
                 models.Plan(nombre="Pase Libre Mensual", precio=25000.0, dias_duracion=30, descripcion="Acceso libre a musculación y clases."),
@@ -85,12 +89,65 @@ def startup_db_init():
             ])
             db.commit()
     except Exception as e:
-        print(f"Alerta en startup_db_init: {e}")
+        print(f"Alerta startup: {e}")
     finally:
         db.close()
 
 
-# --- AUTENTICACIÓN Y SESIONES ---
+def procesar_factura_y_mail(socio_id: int, pago_id: int, monto: float, concepto: str):
+    from .database import SessionLocal
+    db = SessionLocal()
+    try:
+        socio = db.query(models.Socio).get(socio_id)
+        pago = db.query(models.Pago).get(pago_id)
+        if not socio or not pago:
+            return
+
+        arca_data = billing.emitir_factura_arca(
+            socio_nombre=f"{socio.nombre} {socio.apellido}",
+            socio_dni=socio.dni,
+            monto=monto,
+            concepto=concepto
+        )
+
+        factura = models.Factura(
+            pago_id=pago.id,
+            socio_id=socio.id,
+            tipo_comprobante=arca_data["tipo_comprobante"],
+            punto_venta=arca_data["punto_venta"],
+            numero_comprobante=arca_data["numero_comprobante"],
+            cae=arca_data["cae"],
+            cae_vencimiento=arca_data["cae_vencimiento"],
+            monto_total=monto
+        )
+        db.add(factura)
+        db.commit()
+
+        pdf_bytes = billing.generar_pdf_factura(
+            socio_nombre=f"{socio.nombre} {socio.apellido}",
+            socio_dni=socio.dni,
+            socio_email=socio.email,
+            factura_data=arca_data,
+            concepto=concepto
+        )
+
+        nro_fmt = f"{arca_data['punto_venta']:04d}-{arca_data['numero_comprobante']:08d}"
+        enviado = billing.enviar_correo_factura(
+            destinatario=socio.email,
+            nombre_socio=socio.nombre,
+            pdf_bytes=pdf_bytes,
+            nro_factura=nro_fmt
+        )
+        if enviado:
+            factura.enviada_por_mail = True
+            db.commit()
+    except Exception as e:
+        print(f"Error facturacion/email: {e}")
+    finally:
+        db.close()
+
+
+# --- AUTENTICACIÓN ---
 
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request, user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user)):
@@ -114,7 +171,7 @@ def login_action(
 ):
     user = db.query(models.UsuarioSistema).filter(models.UsuarioSistema.username == username.strip()).first()
     if not user or not auth.verify_password(password, user.password_hash) or not user.activo:
-        return templates.TemplateResponse(request=request, name="login.html", context={"error": "Usuario o contraseña incorrectos."})
+        return templates.TemplateResponse(request=request, name="login.html", context={"error": "Usuario o contraseña inválidos."})
 
     token = auth.create_access_token(data={"sub": user.username, "rol": user.rol})
     resp = RedirectResponse(url="/dashboard", status_code=status.HTTP_302_FOUND)
@@ -129,7 +186,7 @@ def logout():
     return resp
 
 
-# --- PANEL PRINCIPAL (DASHBOARD) PROTEGIDO CONTRA ERRORES ---
+# --- DASHBOARD ---
 
 @app.get("/dashboard", response_class=HTMLResponse)
 def dashboard(
@@ -147,7 +204,7 @@ def dashboard(
         total_clases = db.query(models.Actividad).count() or 0
         ultimos_accesos = db.query(models.RegistroAcceso).order_by(models.RegistroAcceso.fecha_hora.desc()).limit(10).all() or []
     except Exception as e:
-        print(f"Error consultando datos para dashboard: {e}")
+        print(f"Error dashboard: {e}")
         total_socios, socios_activos, total_profes, total_clases, ultimos_accesos = 0, 0, 0, 0, []
 
     return templates.TemplateResponse(
@@ -276,7 +333,7 @@ def toggle_bloqueo_socio(socio_id: int, user: Optional[models.UsuarioSistema] = 
     return RedirectResponse(url="/socios", status_code=status.HTTP_302_FOUND)
 
 
-# --- MÓDULO PROFESORES Y CLASES ---
+# --- MÓDULO PROFESORES Y CLASES (CON SUELDOS) ---
 
 @app.get("/clases-profesores", response_class=HTMLResponse)
 def clases_profesores_view(request: Request, user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user), db: Session = Depends(get_db)):
@@ -298,12 +355,22 @@ def crear_profesor(
     dni: str = Form(...),
     celular: str = Form(...),
     especialidad: str = Form(...),
+    sueldo: float = Form(0.0),
+    tipo_sueldo: str = Form("MENSUAL"),
     user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user),
     db: Session = Depends(get_db)
 ):
     if not user:
         return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
-    profe = models.Profesor(nombre=nombre.strip(), apellido=apellido.strip(), dni=dni.strip(), celular=celular.strip(), especialidad=especialidad.strip())
+    profe = models.Profesor(
+        nombre=nombre.strip(),
+        apellido=apellido.strip(),
+        dni=dni.strip(),
+        celular=celular.strip(),
+        especialidad=especialidad.strip(),
+        sueldo=sueldo,
+        tipo_sueldo=tipo_sueldo
+    )
     db.add(profe)
     db.commit()
     return RedirectResponse(url="/clases-profesores", status_code=status.HTTP_302_FOUND)
@@ -315,13 +382,21 @@ def crear_clase(
     dias: str = Form(...),
     horario: str = Form(...),
     cupo_maximo: int = Form(20),
-    profesor_id: Optional[int] = Form(None),
+    profesor_id: Optional[str] = Form(None),
     user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user),
     db: Session = Depends(get_db)
 ):
     if not user:
         return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
-    clase = models.Actividad(nombre=nombre.strip(), dias=dias.strip(), horario=horario.strip(), cupo_maximo=cupo_maximo, profesor_id=profesor_id)
+    
+    pid = int(profesor_id) if profesor_id and profesor_id.strip() else None
+    clase = models.Actividad(
+        nombre=nombre.strip(),
+        dias=dias.strip(),
+        horario=horario.strip(),
+        cupo_maximo=cupo_maximo,
+        profesor_id=pid
+    )
     db.add(clase)
     db.commit()
     return RedirectResponse(url="/clases-profesores", status_code=status.HTTP_302_FOUND)
@@ -346,6 +421,7 @@ def pagos_view(request: Request, user: Optional[models.UsuarioSistema] = Depends
 
 @app.post("/pagos/registrar")
 def registrar_pago(
+    background_tasks: BackgroundTasks,
     socio_id: int = Form(...),
     plan_id: int = Form(...),
     metodo_pago: str = Form(...),
@@ -368,14 +444,18 @@ def registrar_pago(
     socio.estado_cuota = "ACTIVO"
     socio.plan_id = plan.id
 
+    concepto = f"Pago Mostrador: {plan.nombre}"
     nuevo_pago = models.Pago(
         socio_id=socio.id,
         monto=plan.precio,
         metodo_pago=metodo_pago,
-        concepto=f"Pago: {plan.nombre}"
+        concepto=concepto
     )
     db.add(nuevo_pago)
     db.commit()
+
+    background_tasks.add_task(procesar_factura_y_mail, socio.id, nuevo_pago.id, plan.precio, concepto)
+
     return RedirectResponse(url="/caja-pagos", status_code=status.HTTP_302_FOUND)
 
 
@@ -450,7 +530,7 @@ def vender_producto(
     return RedirectResponse(url="/kiosco", status_code=status.HTTP_302_FOUND)
 
 
-# --- MÓDULO DE BALANCES, INFORMES Y VENCIMIENTOS ---
+# --- BALANCES Y REPORTES ---
 
 @app.get("/balance", response_class=HTMLResponse)
 def balance_view(request: Request, user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user), db: Session = Depends(get_db)):
@@ -497,7 +577,7 @@ def balance_view(request: Request, user: Optional[models.UsuarioSistema] = Depen
     })
 
 
-# --- EXPORTACIONES EN CSV (DESCARGAS EXCEL) ---
+# --- EXPORTACIONES CSV ---
 
 @app.get("/exportar/pagos-csv")
 def exportar_pagos_csv(user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user), db: Session = Depends(get_db)):
@@ -507,17 +587,14 @@ def exportar_pagos_csv(user: Optional[models.UsuarioSistema] = Depends(auth.get_
     pagos = db.query(models.Pago).order_by(models.Pago.id.desc()).all()
     output = io.StringIO()
     writer = csv.writer(output, delimiter=";")
-    writer.writerow(["ID", "Fecha", "Socio DNI", "Socio Nombre", "Concepto", "Metodo Pago", "Monto"])
+    writer.writerow(["ID", "Fecha", "Socio DNI", "Socio Nombre", "Concepto", "Metodo Pago", "Monto", "CAE ARCA"])
     for p in pagos:
         dni = p.socio.dni if p.socio else "N/A"
         nombre = f"{p.socio.nombre} {p.socio.apellido}" if p.socio else "Eliminado"
-        writer.writerow([p.id, p.fecha_pago.strftime("%Y-%m-%d %H:%M"), dni, nombre, p.concepto, p.metodo_pago, p.monto])
+        cae_str = p.factura.cae if p.factura else "N/A"
+        writer.writerow([p.id, p.fecha_pago.strftime("%Y-%m-%d %H:%M"), dni, nombre, p.concepto, p.metodo_pago, p.monto, cae_str])
     
-    return Response(
-        content=output.getvalue(),
-        media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=balance_pagos.csv"}
-    )
+    return Response(content=output.getvalue(), media_type="text/csv", headers={"Content-Disposition": "attachment; filename=balance_pagos.csv"})
 
 
 @app.get("/exportar/ventas-csv")
@@ -533,11 +610,7 @@ def exportar_ventas_csv(user: Optional[models.UsuarioSistema] = Depends(auth.get
         prod_nom = v.producto.nombre if v.producto else "Eliminado"
         writer.writerow([v.id, v.fecha.strftime("%Y-%m-%d %H:%M"), prod_nom, v.cantidad, v.metodo_pago, v.total])
     
-    return Response(
-        content=output.getvalue(),
-        media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=balance_ventas_kiosco.csv"}
-    )
+    return Response(content=output.getvalue(), media_type="text/csv", headers={"Content-Disposition": "attachment; filename=balance_ventas_kiosco.csv"})
 
 
 @app.get("/exportar/socios-csv")
@@ -555,14 +628,42 @@ def exportar_socios_csv(user: Optional[models.UsuarioSistema] = Depends(auth.get
         tarjeta = f"{s.tarjeta_marca} ****{s.tarjeta_ultimos4}" if s.tarjeta_tokenizada else "No"
         writer.writerow([s.id, s.dni, s.nombre, s.apellido, s.email, s.celular, plan_nombre, s.estado_cuota, venc, tarjeta])
     
+    return Response(content=output.getvalue(), media_type="text/csv", headers={"Content-Disposition": "attachment; filename=padron_socios.csv"})
+
+
+# --- DESCARGA FACTURA PDF ---
+
+@app.get("/factura/descargar/{factura_id}")
+def descargar_factura_pdf(factura_id: int, db: Session = Depends(get_db)):
+    factura = db.query(models.Factura).get(factura_id)
+    if not factura or not factura.socio:
+        raise HTTPException(status_code=404, detail="Factura no encontrada")
+
+    factura_data = {
+        "tipo_comprobante": factura.tipo_comprobante,
+        "punto_venta": factura.punto_venta,
+        "numero_comprobante": factura.numero_comprobante,
+        "cae": factura.cae,
+        "cae_vencimiento": factura.cae_vencimiento,
+        "monto": factura.monto_total
+    }
+    pdf_bytes = billing.generar_pdf_factura(
+        socio_nombre=f"{factura.socio.nombre} {factura.socio.apellido}",
+        socio_dni=factura.socio.dni,
+        socio_email=factura.socio.email,
+        factura_data=factura_data,
+        concepto=factura.pago.concepto if factura.pago else "Cuota Gimnasio"
+    )
+
+    nro_fmt = f"{factura.punto_venta:04d}-{factura.numero_comprobante:08d}"
     return Response(
-        content=output.getvalue(),
-        media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=padron_socios.csv"}
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=Factura_ARCA_{nro_fmt}.pdf"}
     )
 
 
-# --- PORTAL PÚBLICO DEL SOCIO ---
+# --- PORTAL DEL SOCIO Y CHECKOUT MP ---
 
 @app.get("/socio/login", response_class=HTMLResponse)
 def socio_login_view(request: Request):
@@ -596,53 +697,114 @@ def socio_credencial_view(socio_id: int, request: Request, db: Session = Depends
 
     plan_asignado = socio.plan or db.query(models.Plan).filter(models.Plan.activo == True).first()
 
+    init_point_mp = None
+    if not cuota_al_dia and plan_asignado:
+        try:
+            preference_data = {
+                "items": [
+                    {
+                        "title": f"Abono {plan_asignado.nombre} - Socio {socio.nombre} {socio.apellido}",
+                        "quantity": 1,
+                        "unit_price": float(plan_asignado.precio),
+                        "currency_id": "ARS"
+                    }
+                ],
+                "payer": {
+                    "email": socio.email,
+                    "name": socio.nombre,
+                    "surname": socio.apellido,
+                    "identification": {"type": "DNI", "number": socio.dni}
+                },
+                "external_reference": f"SOCIO-{socio.id}-{int(datetime.utcnow().timestamp())}",
+                "notification_url": f"{APP_PUBLIC_URL}/api/pagos/webhook",
+                "back_urls": {
+                    "success": f"{APP_PUBLIC_URL}/socio/credencial/{socio.id}?pago_exitoso=1",
+                    "failure": f"{APP_PUBLIC_URL}/socio/credencial/{socio.id}?error_pago=1",
+                    "pending": f"{APP_PUBLIC_URL}/socio/credencial/{socio.id}?pago_pendiente=1"
+                },
+                "auto_return": "approved"
+            }
+            pref_result = mp_sdk.preference().create(preference_data)
+            init_point_mp = pref_result["response"].get("init_point")
+        except Exception as e:
+            print(f"Alerta preferencia MP: {e}")
+
+    ultima_factura = db.query(models.Factura).filter(models.Factura.socio_id == socio.id).order_by(models.Factura.id.desc()).first()
+
     return templates.TemplateResponse(request=request, name="socio_credencial.html", context={
         "socio": socio,
         "plan": plan_asignado,
         "habilitado": habilitado,
         "cuota_al_dia": cuota_al_dia,
         "apto_al_dia": apto_al_dia,
-        "qr_image": f"data:image/png;base64,{qr_b64}"
+        "qr_image": f"data:image/png;base64,{qr_b64}",
+        "init_point_mp": init_point_mp,
+        "ultima_factura": ultima_factura
     })
 
 
-@app.post("/socio/pagar-cuota/{socio_id}")
-def socio_pagar_cuota_online(
-    socio_id: int,
-    metodo: str = Form("MERCADOPAGO"),
-    db: Session = Depends(get_db)
-):
-    socio = db.query(models.Socio).get(socio_id)
-    if not socio:
-        raise HTTPException(status_code=404)
+# --- WEBHOOK OFICIAL MERCADO PAGO ---
 
-    plan = socio.plan or db.query(models.Plan).filter(models.Plan.activo == True).first()
-    if not plan:
-        raise HTTPException(status_code=400, detail="No hay plan definido.")
+@app.post("/api/pagos/webhook")
+async def mercadopago_webhook(request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    try:
+        data = await request.json()
+    except Exception:
+        data = {}
 
-    hoy = date.today()
-    if socio.fecha_vencimiento_cuota and socio.fecha_vencimiento_cuota > hoy:
-        socio.fecha_vencimiento_cuota = socio.fecha_vencimiento_cuota + timedelta(days=plan.dias_duracion)
-    else:
-        socio.fecha_vencimiento_cuota = hoy + timedelta(days=plan.dias_duracion)
+    query_params = dict(request.query_params)
+    topic = data.get("type") or query_params.get("topic") or query_params.get("type")
+    data_id = (data.get("data", {}) or {}).get("id") or query_params.get("id") or query_params.get("data.id")
 
-    socio.estado_cuota = "ACTIVO"
-    socio.plan_id = plan.id
+    if topic in ["payment", "payment.created", "payment.updated"] and data_id:
+        try:
+            payment_info = mp_sdk.payment().get(data_id)
+            resp = payment_info.get("response", {})
+            status_pago = resp.get("status")
 
-    desc_metodo = f"Tarjeta ({socio.tarjeta_marca} ****{socio.tarjeta_ultimos4})" if metodo == "TARJETA_VINCULADA" else metodo
-    nuevo_pago = models.Pago(
-        socio_id=socio.id,
-        monto=plan.precio,
-        metodo_pago=desc_metodo,
-        concepto=f"Cobro Automático: {plan.nombre}"
-    )
-    db.add(nuevo_pago)
-    db.commit()
+            if status_pago == "approved":
+                ext_ref = resp.get("external_reference", "")
+                monto = float(resp.get("transaction_amount", 0.0))
+                payment_id_str = str(data_id)
 
-    return RedirectResponse(url=f"/socio/credencial/{socio.id}?pago_exitoso=1", status_code=status.HTTP_302_FOUND)
+                pago_existente = db.query(models.Pago).filter_by(external_payment_id=payment_id_str).first()
+                if pago_existente:
+                    return JSONResponse({"status": "already_processed"})
+
+                if ext_ref.startswith("SOCIO-"):
+                    socio_id = int(ext_ref.split("-")[1])
+                    socio = db.query(models.Socio).get(socio_id)
+                    if socio:
+                        plan = socio.plan or db.query(models.Plan).filter(models.Plan.activo == True).first()
+                        dias = plan.dias_duracion if plan else 30
+
+                        hoy = date.today()
+                        if socio.fecha_vencimiento_cuota and socio.fecha_vencimiento_cuota > hoy:
+                            socio.fecha_vencimiento_cuota = socio.fecha_vencimiento_cuota + timedelta(days=dias)
+                        else:
+                            socio.fecha_vencimiento_cuota = hoy + timedelta(days=dias)
+
+                        socio.estado_cuota = "ACTIVO"
+                        concepto = f"Abono Online MP: {plan.nombre if plan else 'Cuota'}"
+
+                        nuevo_pago = models.Pago(
+                            socio_id=socio.id,
+                            monto=monto,
+                            metodo_pago="MERCADOPAGO",
+                            concepto=concepto,
+                            external_payment_id=payment_id_str
+                        )
+                        db.add(nuevo_pago)
+                        db.commit()
+
+                        background_tasks.add_task(procesar_factura_y_mail, socio.id, nuevo_pago.id, monto, concepto)
+        except Exception as e:
+            print(f"Error Webhook MP: {e}")
+
+    return JSONResponse({"status": "received"})
 
 
-# --- SIMULADOR DE MOLINETE Y VALIDACIÓN ---
+# --- SIMULADOR MOLINETE ---
 
 @app.get("/molinete", response_class=HTMLResponse)
 def molinete_view(request: Request, user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user)):
