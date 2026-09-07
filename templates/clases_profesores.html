@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clases y Profesores | GymPro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
+    <!-- Navbar -->
+    <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between">
+        <div class="flex items-center space-x-6">
+            <span class="text-xl font-bold text-emerald-400">GymPro</span>
+            <nav class="hidden md:flex space-x-4 text-sm font-medium">
+                <a href="/dashboard" class="text-slate-400 hover:text-white transition">Dashboard</a>
+                <a href="/socios" class="text-slate-400 hover:text-white transition">Socios</a>
+                <a href="/clases-profesores" class="text-emerald-400 border-b-2 border-emerald-500 pb-1">Clases y Profes</a>
+                <a href="/caja-pagos" class="text-slate-400 hover:text-white transition">Caja / Cuotas</a>
+                <a href="/kiosco" class="text-slate-400 hover:text-white transition">Kiosco</a>
+                <a href="/molinete" class="text-slate-400 hover:text-white transition">Molinete</a>
+            </nav>
+        </div>
+        <a href="/logout" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg text-rose-400">Cerrar Sesión</a>
+    </header>
+
+    <main class="flex-1 p-6 max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- SECCIÓN PROFESORES -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold">Profesores / Entrenadores</h2>
+                <button onclick="document.getElementById('modal-profe').classList.remove('hidden')" class="bg-emerald-500 hover:bg-emerald-600 px-3 py-1.5 rounded-lg text-xs font-bold text-white transition">+ Nuevo Profesor</button>
+            </div>
+            <div class="overflow-y-auto max-h-[500px]">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-slate-950 text-slate-400 text-xs uppercase">
+                        <tr>
+                            <th class="p-3">Nombre</th>
+                            <th class="p-3">Especialidad</th>
+                            <th class="p-3">Contacto</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800">
+                        {% for p in profesores %}
+                        <tr class="hover:bg-slate-800/30">
+                            <td class="p-3 font-semibold">{{ p.nombre }} {{ p.apellido }}</td>
+                            <td class="p-3 text-xs text-indigo-400">{{ p.especialidad or 'General' }}</td>
+                            <td class="p-3 text-xs text-slate-400">{{ p.celular }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="3" class="p-4 text-center text-slate-500 text-xs">No hay profesores registrados.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- SECCIÓN CLASES / ACTIVIDADES -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold">Grilla de Clases</h2>
+                <button onclick="document.getElementById('modal-clase').classList.remove('hidden')" class="bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 rounded-lg text-xs font-bold text-white transition">+ Nueva Clase</button>
+            </div>
+            <div class="overflow-y-auto max-h-[500px]">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-slate-950 text-slate-400 text-xs uppercase">
+                        <tr>
+                            <th class="p-3">Actividad</th>
+                            <th class="p-3">Días y Horarios</th>
+                            <th class="p-3">Profesor</th>
+                            <th class="p-3 text-center">Cupo</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800">
+                        {% for c in actividades %}
+                        <tr class="hover:bg-slate-800/30">
+                            <td class="p-3 font-semibold text-white">{{ c.nombre }}</td>
+                            <td class="p-3 text-xs text-slate-400">{{ c.dias }} <br><span class="text-slate-300 font-mono">{{ c.horario }}</span></td>
+                            <td class="p-3 text-xs">{{ c.profesor.nombre }} {{ c.profesor.apellido }}</td>
+                            <td class="p-3 text-center text-xs font-bold text-emerald-400">{{ c.cupo_maximo }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="4" class="p-4 text-center text-slate-500 text-xs">No hay clases configuradas.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal Profe -->
+    <div id="modal-profe" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-md">
+            <h3 class="font-bold text-lg mb-4">Alta de Profesor</h3>
+            <form action="/profesores/crear" method="POST" class="space-y-3">
+                <input type="text" name="nombre" placeholder="Nombre" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm">
+                <input type="text" name="apellido" placeholder="Apellido" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm">
+                <input type="text" name="dni" placeholder="DNI" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm">
+                <input type="text" name="celular" placeholder="Celular" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm">
+                <input type="text" name="especialidad" placeholder="Especialidad (ej: Spinning, Crossfit)" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm">
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="document.getElementById('modal-profe').classList.add('hidden')" class="px-3 py-1.5 bg-slate-800 rounded-lg text-xs">Cancelar</button>
+                    <button type="submit" class="px-4 py-1.5 bg-emerald-500 rounded-lg text-xs font-bold text-white">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Clase -->
+    <div id="modal-clase" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-md">
+            <h3 class="font-bold text-lg mb-4">Alta de Clase</h3>
+            <form action="/clases/crear" method="POST" class="space-y-3">
+                <input type="text" name="nombre" placeholder="Nombre de Clase (ej: Funcional)" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm">
+                <input type="text" name="dias" placeholder="Días (ej: Mar y Jue)" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm">
+                <input type="text" name="horario" placeholder="Horario (ej: 19:00 a 20:00)" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm">
+                <input type="number" name="cupo_maximo" placeholder="Cupo Máximo" value="20" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm">
+                <select name="profesor_id" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-slate-300">
+                    <option value="">Seleccionar Profesor a Cargo</option>
+                    {% for p in profesores %}
+                    <option value="{{ p.id }}">{{ p.nombre }} {{ p.apellido }} ({{ p.especialidad }})</option>
+                    {% endfor %}
+                </select>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="document.getElementById('modal-clase').classList.add('hidden')" class="px-3 py-1.5 bg-slate-800 rounded-lg text-xs">Cancelar</button>
+                    <button type="submit" class="px-4 py-1.5 bg-indigo-600 rounded-lg text-xs font-bold text-white">Crear Clase</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

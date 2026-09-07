@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Caja y Cuotas | GymPro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
+    <!-- Navbar -->
+    <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between">
+        <div class="flex items-center space-x-6">
+            <span class="text-xl font-bold text-emerald-400">GymPro</span>
+            <nav class="hidden md:flex space-x-4 text-sm font-medium">
+                <a href="/dashboard" class="text-slate-400 hover:text-white transition">Dashboard</a>
+                <a href="/socios" class="text-slate-400 hover:text-white transition">Socios</a>
+                <a href="/clases-profesores" class="text-slate-400 hover:text-white transition">Clases y Profes</a>
+                <a href="/caja-pagos" class="text-emerald-400 border-b-2 border-emerald-500 pb-1">Caja / Cuotas</a>
+                <a href="/kiosco" class="text-slate-400 hover:text-white transition">Kiosco</a>
+                <a href="/molinete" class="text-slate-400 hover:text-white transition">Molinete</a>
+            </nav>
+        </div>
+        <a href="/logout" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg text-rose-400">Cerrar Sesión</a>
+    </header>
+
+    <main class="flex-1 p-6 max-w-7xl mx-auto w-full space-y-6">
+        <!-- Tarjetas de Acciones Rápidas -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Registrar Pago de Cuota -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+                <h2 class="text-lg font-bold text-emerald-400 mb-2">💵 Cobrar Cuota a Socio</h2>
+                <p class="text-xs text-slate-400 mb-4">Selecciona el socio y el plan. El sistema extenderá automáticamente 30 días de acceso en el molinete.</p>
+                <form action="/pagos/registrar" method="POST" class="space-y-3">
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Socio</label>
+                        <select name="socio_id" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm">
+                            <option value="">Seleccionar Socio...</option>
+                            {% for s in socios %}
+                            <option value="{{ s.id }}">{{ s.nombre }} {{ s.apellido }} (DNI: {{ s.dni }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">Plan</label>
+                            <select name="plan_id" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm">
+                                {% for p in planes %}
+                                <option value="{{ p.id }}">{{ p.nombre }} - ${{ p.precio }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">Forma de Pago</label>
+                            <select name="metodo_pago" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm">
+                                <option value="EFECTIVO">Efectivo</option>
+                                <option value="MERCADOPAGO">Mercado Pago / QR</option>
+                                <option value="TRANSFERENCIA">Transferencia</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-600 py-2.5 rounded-lg font-bold text-white text-sm transition">
+                        Confirmar y Renovar Acceso
+                    </button>
+                </form>
+            </div>
+
+            <!-- Nuevo Plan / Tarifa -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+                <h2 class="text-lg font-bold text-indigo-400 mb-2">📋 Configurar Planes y Precios</h2>
+                <p class="text-xs text-slate-400 mb-4">Crea nuevas categorías de abonos para el gimnasio.</p>
+                <form action="/planes/crear" method="POST" class="space-y-3">
+                    <input type="text" name="nombre" placeholder="Nombre (ej: Pase Trimestral)" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm">
+                    <div class="grid grid-cols-2 gap-3">
+                        <input type="number" step="0.01" name="precio" placeholder="Precio ($)" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm">
+                        <input type="number" name="dias_duracion" placeholder="Días (ej: 30)" value="30" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm">
+                    </div>
+                    <input type="text" name="descripcion" placeholder="Descripción breve" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm">
+                    <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 py-2 rounded-lg font-bold text-white text-sm transition">
+                        Guardar Nuevo Plan
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Historial de Cobros -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+            <h3 class="font-bold text-base mb-4">Últimos Cobros Registrados</h3>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-slate-950 text-slate-400 text-xs uppercase">
+                        <tr>
+                            <th class="p-3">Fecha y Hora</th>
+                            <th class="p-3">Socio</th>
+                            <th class="p-3">Concepto</th>
+                            <th class="p-3">Método</th>
+                            <th class="p-3 text-right">Monto</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800">
+                        {% for p in pagos %}
+                        <tr class="hover:bg-slate-800/30">
+                            <td class="p-3 text-xs text-slate-400 font-mono">{{ p.fecha_pago.strftime('%d/%m/%Y %H:%M') }}</td>
+                            <td class="p-3 font-semibold">{{ p.socio.nombre }} {{ p.socio.apellido }}</td>
+                            <td class="p-3 text-xs">{{ p.concepto }}</td>
+                            <td class="p-3 text-xs">
+                                <span class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 font-semibold">{{ p.metodo_pago }}</span>
+                            </td>
+                            <td class="p-3 text-right font-bold text-emerald-400">${{ p.monto }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="5" class="p-6 text-center text-slate-500 text-xs">No hay pagos registrados aún.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+</body>
+</html>

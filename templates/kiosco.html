@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kiosco / Productos | GymPro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
+    <!-- Navbar -->
+    <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between">
+        <div class="flex items-center space-x-6">
+            <span class="text-xl font-bold text-emerald-400">GymPro</span>
+            <nav class="hidden md:flex space-x-4 text-sm font-medium">
+                <a href="/dashboard" class="text-slate-400 hover:text-white transition">Dashboard</a>
+                <a href="/socios" class="text-slate-400 hover:text-white transition">Socios</a>
+                <a href="/clases-profesores" class="text-slate-400 hover:text-white transition">Clases y Profes</a>
+                <a href="/caja-pagos" class="text-slate-400 hover:text-white transition">Caja / Cuotas</a>
+                <a href="/kiosco" class="text-emerald-400 border-b-2 border-emerald-500 pb-1">Kiosco</a>
+                <a href="/molinete" class="text-slate-400 hover:text-white transition">Molinete</a>
+            </nav>
+        </div>
+        <a href="/logout" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg text-rose-400">Cerrar Sesión</a>
+    </header>
+
+    <main class="flex-1 p-6 max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- VENTA RÁPIDA -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col">
+            <h2 class="text-lg font-bold text-emerald-400 mb-2">🛒 Venta en Mostrador</h2>
+            <p class="text-xs text-slate-400 mb-4">Descuenta stock en tiempo real.</p>
+            <form action="/productos/vender" method="POST" class="space-y-3">
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Producto</label>
+                    <select name="producto_id" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm">
+                        {% for p in productos %}
+                        <option value="{{ p.id }}">{{ p.nombre }} - ${{ p.precio_venta }} (Stock: {{ p.stock }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Cantidad</label>
+                        <input type="number" name="cantidad" value="1" min="1" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Cobro</label>
+                        <select name="metodo_pago" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm">
+                            <option value="EFECTIVO">Efectivo</option>
+                            <option value="MERCADOPAGO">Mercado Pago</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-600 font-bold py-2.5 rounded-lg text-sm transition">
+                    Registrar Venta
+                </button>
+            </form>
+
+            <!-- Dar de alta producto -->
+            <div class="mt-8 pt-6 border-t border-slate-800">
+                <h3 class="font-bold text-sm mb-3">Ingresar Nuevo Producto al Stock</h3>
+                <form action="/productos/crear" method="POST" class="space-y-2">
+                    <input type="text" name="nombre" placeholder="Nombre (ej: Bebida Isotónica 500ml)" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs">
+                    <div class="grid grid-cols-3 gap-2">
+                        <select name="categoria" class="bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs">
+                            <option value="BEBIDAS">Bebida</option>
+                            <option value="SUPLEMENTOS">Suplemento</option>
+                            <option value="SNACKS">Snack</option>
+                        </select>
+                        <input type="number" step="0.01" name="precio_venta" placeholder="Precio ($)" required class="bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs">
+                        <input type="number" name="stock" placeholder="Stock" required class="bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs">
+                    </div>
+                    <button type="submit" class="w-full bg-slate-800 hover:bg-slate-700 font-semibold py-1.5 rounded-lg text-xs transition">
+                        Guardar Producto
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- LISTADO DE PRODUCTOS Y VENTAS -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- Inventario -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+                <h3 class="font-bold text-base mb-3">Stock Actual</h3>
+                <div class="overflow-x-auto max-h-60 overflow-y-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-slate-950 text-slate-400 text-xs uppercase">
+                            <tr>
+                                <th class="p-2.5">Producto</th>
+                                <th class="p-2.5">Categoría</th>
+                                <th class="p-2.5">Precio</th>
+                                <th class="p-2.5 text-center">Stock</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-800">
+                            {% for p in productos %}
+                            <tr class="hover:bg-slate-800/30">
+                                <td class="p-2.5 font-semibold">{{ p.nombre }}</td>
+                                <td class="p-2.5 text-xs text-slate-400">{{ p.categoria }}</td>
+                                <td class="p-2.5 text-xs font-bold text-emerald-400">${{ p.precio_venta }}</td>
+                                <td class="p-2.5 text-center">
+                                    <span class="px-2 py-0.5 rounded text-xs font-bold {% if p.stock > 5 %}bg-emerald-950 text-emerald-400{% else %}bg-rose-950 text-rose-400{% endif %}">
+                                        {{ p.stock }} u.
+                                    </span>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="4" class="p-4 text-center text-slate-500 text-xs">No hay productos en inventario.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Últimas Ventas -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+                <h3 class="font-bold text-base mb-3">Últimas Ventas Realizadas</h3>
+                <div class="overflow-x-auto max-h-60 overflow-y-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-slate-950 text-slate-400 text-xs uppercase">
+                            <tr>
+                                <th class="p-2.5">Hora</th>
+                                <th class="p-2.5">Producto</th>
+                                <th class="p-2.5 text-center">Cant.</th>
+                                <th class="p-2.5 text-right">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-800">
+                            {% for v in ventas %}
+                            <tr class="hover:bg-slate-800/30">
+                                <td class="p-2.5 text-xs text-slate-400 font-mono">{{ v.fecha.strftime('%H:%M') }}</td>
+                                <td class="p-2.5 text-xs">{{ v.producto.nombre }}</td>
+                                <td class="p-2.5 text-center text-xs">{{ v.cantidad }}</td>
+                                <td class="p-2.5 text-right font-bold text-emerald-400">${{ v.total }}</td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="4" class="p-4 text-center text-slate-500 text-xs">Sin ventas recientes.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+</body>
+</html>

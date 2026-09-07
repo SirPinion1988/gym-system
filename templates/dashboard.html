@@ -1,51 +1,85 @@
-{% extends "base.html" %}
-{% block content %}
-<h2 class="text-2xl font-bold mb-6">Panel General de Control</h2>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Control | GymPro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
+    <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between">
+        <div class="flex items-center space-x-6">
+            <span class="text-xl font-bold tracking-tight text-emerald-400">GymPro</span>
+            <nav class="hidden md:flex space-x-4 text-sm font-medium">
+                <a href="/dashboard" class="text-emerald-400 border-b-2 border-emerald-500 pb-1">Dashboard</a>
+                <a href="/socios" class="text-slate-400 hover:text-white transition">Socios</a>
+                <a href="/clases-profesores" class="text-slate-400 hover:text-white transition">Clases y Profes</a>
+                <a href="/caja-pagos" class="text-slate-400 hover:text-white transition">Caja / Cuotas</a>
+                <a href="/kiosco" class="text-slate-400 hover:text-white transition">Kiosco</a>
+                <a href="/molinete" class="text-slate-400 hover:text-white transition">Molinete</a>
+            </nav>
+        </div>
+        <div class="flex items-center space-x-4">
+            <span class="text-xs text-slate-400">{{ user.nombre }}</span>
+            <a href="/logout" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg text-rose-400">Cerrar Sesión</a>
+        </div>
+    </header>
 
-<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-    <div class="bg-slate-950 border border-slate-800 p-5 rounded-xl">
-        <span class="text-slate-400 text-sm">Total Socios</span>
-        <div class="text-3xl font-black text-white mt-1">{{ total_socios }}</div>
-    </div>
-    <div class="bg-slate-950 border border-slate-800 p-5 rounded-xl">
-        <span class="text-slate-400 text-sm">Socios con Cuota Activa</span>
-        <div class="text-3xl font-black text-emerald-400 mt-1">{{ socios_activos }}</div>
-    </div>
-    <div class="bg-slate-950 border border-slate-800 p-5 rounded-xl">
-        <span class="text-slate-400 text-sm">Actividades Registradas</span>
-        <div class="text-3xl font-black text-sky-400 mt-1">{{ total_actividades }}</div>
-    </div>
-</div>
+    <main class="flex-1 p-6 max-w-7xl mx-auto w-full space-y-6">
+        <!-- Métricas Principales -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+                <span class="text-xs text-slate-400 uppercase font-bold">Socios Totales</span>
+                <div class="text-2xl font-black text-white mt-1">{{ total_socios }}</div>
+            </div>
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+                <span class="text-xs text-slate-400 uppercase font-bold">Cuotas al Día</span>
+                <div class="text-2xl font-black text-emerald-400 mt-1">{{ socios_activos }}</div>
+            </div>
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+                <span class="text-xs text-slate-400 uppercase font-bold">Profesores</span>
+                <div class="text-2xl font-black text-indigo-400 mt-1">{{ total_profes }}</div>
+            </div>
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+                <span class="text-xs text-slate-400 uppercase font-bold">Clases Activas</span>
+                <div class="text-2xl font-black text-amber-400 mt-1">{{ total_clases }}</div>
+            </div>
+        </div>
 
-<h3 class="text-lg font-bold mb-4">Últimos Pasos por el Molinete</h3>
-<div class="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden">
-    <table class="w-full text-left text-sm">
-        <thead class="bg-slate-900 text-slate-400 border-b border-slate-800">
-            <tr>
-                <th class="p-3">Fecha y Hora</th>
-                <th class="p-3">Socio ID</th>
-                <th class="p-3">Resultado</th>
-                <th class="p-3">Detalle</th>
-            </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-800">
-            {% for acc in ultimos_accesos %}
-            <tr>
-                <td class="p-3">{{ acc.fecha_hora.strftime('%d/%m/%Y %H:%M:%S') }}</td>
-                <td class="p-3">Socio #{{ acc.socio_id }}</td>
-                <td class="p-3">
-                    <span class="px-2 py-0.5 rounded text-xs font-bold {% if acc.resultado == 'PERMITIDO' %}bg-emerald-500/20 text-emerald-400{% else %}bg-red-500/20 text-red-400{% endif %}">
-                        {{ acc.resultado }}
-                    </span>
-                </td>
-                <td class="p-3 text-slate-400">{{ acc.motivo }}</td>
-            </tr>
-            {% else %}
-            <tr>
-                <td colspan="4" class="p-4 text-center text-slate-500">Aún no hay registros de acceso.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
-{% endblock %}
+        <!-- Accesos al Molinete -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+            <h2 class="text-lg font-bold mb-4">Últimos Pasos por Molinete</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-slate-950 text-slate-400 text-xs uppercase">
+                        <tr>
+                            <th class="p-3">Hora</th>
+                            <th class="p-3">Socio</th>
+                            <th class="p-3">Estado</th>
+                            <th class="p-3">Detalle</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800">
+                        {% for a in ultimos_accesos %}
+                        <tr class="hover:bg-slate-800/30">
+                            <td class="p-3 font-mono text-xs text-slate-400">{{ a.fecha_hora.strftime('%H:%M:%S') }}</td>
+                            <td class="p-3 font-semibold">{{ a.socio.nombre }} {{ a.socio.apellido }}</td>
+                            <td class="p-3">
+                                {% if a.resultado == 'PERMITIDO' %}
+                                <span class="px-2 py-0.5 rounded text-xs bg-emerald-950 text-emerald-400 border border-emerald-800 font-bold">PERMITIDO</span>
+                                {% else %}
+                                <span class="px-2 py-0.5 rounded text-xs bg-rose-950 text-rose-400 border border-rose-800 font-bold">DENEGADO</span>
+                                {% endif %}
+                            </td>
+                            <td class="p-3 text-xs text-slate-400">{{ a.motivo }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="4" class="p-4 text-center text-slate-500 text-xs">Sin registros aún.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+</body>
+</html>
