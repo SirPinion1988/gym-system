@@ -26,7 +26,7 @@ Base.metadata.create_all(bind=engine)
 app = FastAPI(title="Sistema de Gestión de Gimnasio - GymPro")
 
 GYM_NOMBRE = os.getenv("EMPRESA_RAZON_SOCIAL", "GymPro Fitness")
-MP_ACCESS_TOKEN = os.getenv("MP_ACCESS_TOKEN", "TEST-0000000000000000-000000-000000-000000-0000000000000000-000000000")
+MP_ACCESS_TOKEN = os.getenv("MP_ACCESS_TOKEN", "TEST-0000000000000000-000000-000000-0000000000000000-0000000000000000-000000000")
 mp_sdk = mercadopago.SDK(MP_ACCESS_TOKEN)
 APP_PUBLIC_URL = os.getenv("APP_PUBLIC_URL", "https://gimnasio-app-0qhn.onrender.com")
 
@@ -154,7 +154,7 @@ def procesar_factura_y_mail(socio_id: int, pago_id: int, monto: float, concepto:
         db.close()
 
 
-# --- LOGIN Y PORTAL INICIAL ---
+# --- RUTAS DE LOGIN Y PORTAL INICIAL ---
 
 @app.get("/", response_class=HTMLResponse)
 def index_hub(request: Request, user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user)):
@@ -436,6 +436,25 @@ async def editar_socio(
     return RedirectResponse(url="/socios", status_code=status.HTTP_302_FOUND)
 
 
+# NUEVO: Anular directamente la cuota de un socio desde su ficha
+@app.post("/socios/anular-cuota/{socio_id}")
+def anular_cuota_socio(
+    socio_id: int,
+    user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    if not user:
+        raise HTTPException(status_code=401)
+    socio = db.query(models.Socio).get(socio_id)
+    if not socio:
+        raise HTTPException(status_code=404)
+
+    socio.estado_cuota = "INACTIVO"
+    socio.fecha_vencimiento_cuota = date.today() - timedelta(days=1)
+    db.commit()
+    return RedirectResponse(url="/socios", status_code=status.HTTP_302_FOUND)
+
+
 @app.post("/socios/gestionar-permiso/{socio_id}")
 def gestionar_permiso_socio(
     socio_id: int,
@@ -588,7 +607,7 @@ def api_generar_link_pago(socio_id: int, user: Optional[models.UsuarioSistema] =
     })
 
 
-# --- MÓDULO ADMINISTRATIVO DE RUTINAS Y ENTRENAMIENTOS ---
+# --- MÓDULO ADMINISTRATIVO DE RUTINAS ---
 
 @app.get("/rutinas", response_class=HTMLResponse)
 def rutinas_admin_view(request: Request, user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user), db: Session = Depends(get_db)):
@@ -628,7 +647,6 @@ def crear_rutina(
 
     profe_id = int(profesor_id) if profesor_id and profesor_id.strip() and profesor_id != "" else None
 
-    # Desactivar rutinas previas del socio
     db.query(models.Rutina).filter(models.Rutina.socio_id == socio_id).update({"activa": False})
 
     nueva_rutina = models.Rutina(
@@ -641,7 +659,6 @@ def crear_rutina(
     db.add(nueva_rutina)
     db.commit()
 
-    # Cargar ejercicios de plantilla si se seleccionó
     if plantilla == "HIPERTROFIA":
         ejercicios_plantilla = [
             ("Día 1 - Pecho y Bíceps", "Press Banca Plano con Barra", 4, "10-12", "60kg", "90s"),
@@ -733,7 +750,6 @@ def eliminar_rutina_completa(rutina_id: int, user: Optional[models.UsuarioSistem
     return RedirectResponse(url="/rutinas", status_code=status.HTTP_302_FOUND)
 
 
-# NUEVO: Endpoint asíncrono para que el socio tilde ejercicios en tiempo real
 @app.post("/api/socio/rutina/toggle-ejercicio/{ejercicio_id}")
 def api_toggle_ejercicio_socio(ejercicio_id: int, db: Session = Depends(get_db)):
     ej = db.query(models.EjercicioRutina).get(ejercicio_id)
@@ -743,7 +759,6 @@ def api_toggle_ejercicio_socio(ejercicio_id: int, db: Session = Depends(get_db))
     ej.completado = not ej.completado
     db.commit()
 
-    # Recalcular porcentaje de la rutina
     total = db.query(models.EjercicioRutina).filter(models.EjercicioRutina.rutina_id == ej.rutina_id).count() or 1
     hechos = db.query(models.EjercicioRutina).filter(models.EjercicioRutina.rutina_id == ej.rutina_id, models.EjercicioRutina.completado == True).count() or 0
     porcentaje = int((hechos / total) * 100)
@@ -757,7 +772,6 @@ def api_toggle_ejercicio_socio(ejercicio_id: int, db: Session = Depends(get_db))
     })
 
 
-# NUEVO: Reiniciar los tildes de la rutina del socio para comenzar un nuevo día/semana
 @app.post("/api/socio/rutina/reiniciar/{rutina_id}")
 def api_reiniciar_rutina_socio(rutina_id: int, db: Session = Depends(get_db)):
     db.query(models.EjercicioRutina).filter(models.EjercicioRutina.rutina_id == rutina_id).update({"completado": False})
@@ -845,7 +859,7 @@ def crear_clase(
     return RedirectResponse(url="/clases-profesores", status_code=status.HTTP_302_FOUND)
 
 
-# --- CAJA Y PLANES ---
+# --- CAJA Y PLANES (CON ANULACIÓN SEGURA Y REAJUSTE DE CUOTA) ---
 
 @app.get("/caja-pagos", response_class=HTMLResponse)
 def pagos_view(request: Request, user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user), db: Session = Depends(get_db)):
@@ -938,6 +952,7 @@ def editar_pago(
     return RedirectResponse(url="/caja-pagos", status_code=status.HTTP_302_FOUND)
 
 
+# ANULACIÓN SEGURA DE PAGO Y RESTABLECIMIENTO DE CUOTA
 @app.post("/pagos/eliminar/{pago_id}")
 def eliminar_pago(
     pago_id: int,
@@ -950,8 +965,36 @@ def eliminar_pago(
     if not pago:
         raise HTTPException(status_code=404, detail="Cobro no encontrado")
 
-    db.delete(pago)
-    db.commit()
+    try:
+        socio = pago.socio
+        if socio:
+            # Buscar otros pagos previos del socio
+            pagos_anteriores = db.query(models.Pago).filter(
+                models.Pago.socio_id == socio.id,
+                models.Pago.id != pago.id
+            ).order_by(models.Pago.fecha_pago.desc()).all()
+
+            if not pagos_anteriores:
+                # Si era el único pago, la cuota vuelve a quedar impaga
+                socio.estado_cuota = "INACTIVO"
+                socio.fecha_vencimiento_cuota = date.today() - timedelta(days=1)
+            else:
+                # Descontar los días del plan
+                dias_restar = socio.plan.dias_duracion if socio.plan else 30
+                if socio.fecha_vencimiento_cuota:
+                    socio.fecha_vencimiento_cuota = socio.fecha_vencimiento_cuota - timedelta(days=dias_restar)
+                    if socio.fecha_vencimiento_cuota < date.today():
+                        socio.estado_cuota = "INACTIVO"
+
+        # Borrar facturas asociadas antes de eliminar el cobro
+        db.query(models.Factura).filter(models.Factura.pago_id == pago.id).delete(synchronize_session=False)
+
+        db.delete(pago)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        print(f"Error al anular pago: {e}")
+
     return RedirectResponse(url="/caja-pagos", status_code=status.HTTP_302_FOUND)
 
 
@@ -1115,7 +1158,7 @@ def api_kiosco_cobro_mp(
     })
 
 
-# --- BALANCE Y FINANZAS PROFESIONAL ---
+# --- BALANCE Y FINANZAS ---
 
 @app.get("/balance", response_class=HTMLResponse)
 def balance_view(request: Request, user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user), db: Session = Depends(get_db)):
@@ -1291,7 +1334,7 @@ def descargar_factura_pdf(factura_id: int, db: Session = Depends(get_db)):
     )
 
 
-# --- CREDENCIAL DIGITAL (CON SEGUIMIENTO DE RUTINAS Y FACTURAS) ---
+# --- CREDENCIAL DIGITAL ---
 
 @app.get("/socio/credencial/{socio_id}", response_class=HTMLResponse)
 def socio_credencial_view(socio_id: int, request: Request, db: Session = Depends(get_db)):
@@ -1343,7 +1386,6 @@ def socio_credencial_view(socio_id: int, request: Request, db: Session = Depends
 
     facturas = db.query(models.Factura).filter(models.Factura.socio_id == socio.id).order_by(models.Factura.id.desc()).all() or []
 
-    # Cargar rutina activa del socio con sus ejercicios
     rutina_activa = db.query(models.Rutina).options(joinedload(models.Rutina.ejercicios)).filter(
         models.Rutina.socio_id == socio.id,
         models.Rutina.activa == True

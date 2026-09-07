@@ -70,9 +70,9 @@ class Socio(Base):
     creado_en = Column(DateTime, default=datetime.utcnow)
 
     plan = relationship("Plan")
-    pagos = relationship("Pago", back_populates="socio")
-    facturas = relationship("Factura", back_populates="socio")
-    accesos = relationship("RegistroAcceso", back_populates="socio")
+    pagos = relationship("Pago", back_populates="socio", cascade="all, delete-orphan")
+    facturas = relationship("Factura", back_populates="socio", cascade="all, delete-orphan")
+    accesos = relationship("RegistroAcceso", back_populates="socio", cascade="all, delete-orphan")
     rutinas = relationship("Rutina", back_populates="socio", cascade="all, delete-orphan")
 
 class Rutina(Base):
@@ -113,7 +113,7 @@ class Pago(Base):
     external_payment_id = Column(String(100), unique=True, nullable=True)
     fecha_pago = Column(DateTime, default=datetime.utcnow)
     socio = relationship("Socio", back_populates="pagos")
-    factura = relationship("Factura", back_populates="pago", uselist=False)
+    factura = relationship("Factura", back_populates="pago", uselist=False, cascade="all, delete-orphan")
 
 class Factura(Base):
     __tablename__ = "facturas"
