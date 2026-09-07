@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kiosco / Productos | GymPro</title>
+    <title>Kiosco / Productos | {{ gym_nombre }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
@@ -14,11 +14,12 @@
                 <div class="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center font-black text-emerald-400 text-sm">
                     GP
                 </div>
-                <span class="text-xl font-bold tracking-tight text-white">Gym<span class="text-emerald-400">Pro</span></span>
+                <span class="text-xl font-bold tracking-tight text-white">{{ gym_nombre }}</span>
             </div>
             <nav class="hidden lg:flex space-x-4 text-sm font-medium">
                 <a href="/dashboard" class="text-slate-400 hover:text-white transition">Dashboard</a>
                 <a href="/socios" class="text-slate-400 hover:text-white transition">Socios</a>
+                <a href="/rutinas" class="text-slate-400 hover:text-white transition">Rutinas</a>
                 <a href="/clases-profesores" class="text-slate-400 hover:text-white transition">Clases y Profes</a>
                 <a href="/caja-pagos" class="text-slate-400 hover:text-white transition">Caja / Cuotas</a>
                 <a href="/kiosco" class="text-emerald-400 border-b-2 border-emerald-500 pb-1">Kiosco</a>
@@ -67,13 +68,11 @@
                     </div>
                 </div>
 
-                <!-- Botón dinámico según el método elegido -->
                 <button type="button" id="btn-ejecutar-venta" onclick="procesarVenta()" class="w-full bg-emerald-500 hover:bg-emerald-600 font-bold py-2.5 rounded-lg text-sm text-white transition shadow-lg shadow-emerald-500/20">
                     Confirmar Venta
                 </button>
             </form>
 
-            <!-- Carga de nuevo producto al stock -->
             <div class="mt-8 pt-6 border-t border-slate-800">
                 <h3 class="font-bold text-sm text-white mb-3">Ingresar Producto al Stock</h3>
                 <form action="/productos/crear" method="POST" class="space-y-2">
@@ -94,7 +93,7 @@
             </div>
         </div>
 
-        <!-- LISTADOS -->
+        <!-- LISTADOS DE INVENTARIO Y VENTAS -->
         <div class="lg:col-span-2 space-y-6">
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
                 <h3 class="font-bold text-base text-white mb-3">Stock Actual</h3>
@@ -160,7 +159,7 @@
         </div>
     </main>
 
-    <!-- MODAL QR MERCADO PAGO PARA EL CLIENTE -->
+    <!-- MODAL QR MERCADO PAGO -->
     <div id="modal-mp-kiosco" class="hidden fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 w-full max-w-sm rounded-3xl p-6 text-center shadow-2xl space-y-4">
             <div>
@@ -212,7 +211,6 @@
                     alert('No se pudo generar el QR de Mercado Pago. Verifica el stock o el token.');
                 }
             } else {
-                // Si es efectivo o transferencia directa, envía el formulario clásico
                 document.getElementById('form-venta-kiosco').submit();
             }
         }

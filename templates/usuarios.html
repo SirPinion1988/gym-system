@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Usuarios del Sistema | GymPro</title>
+    <title>Usuarios del Sistema | {{ gym_nombre }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
@@ -14,11 +14,12 @@
                 <div class="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center font-black text-emerald-400 text-sm">
                     GP
                 </div>
-                <span class="text-xl font-bold tracking-tight text-white">Gym<span class="text-emerald-400">Pro</span></span>
+                <span class="text-xl font-bold tracking-tight text-white">{{ gym_nombre }}</span>
             </div>
             <nav class="hidden lg:flex space-x-4 text-sm font-medium">
                 <a href="/dashboard" class="text-slate-400 hover:text-white transition">Dashboard</a>
                 <a href="/socios" class="text-slate-400 hover:text-white transition">Socios</a>
+                <a href="/rutinas" class="text-slate-400 hover:text-white transition">Rutinas</a>
                 <a href="/clases-profesores" class="text-slate-400 hover:text-white transition">Clases y Profes</a>
                 <a href="/caja-pagos" class="text-slate-400 hover:text-white transition">Caja / Cuotas</a>
                 <a href="/kiosco" class="text-slate-400 hover:text-white transition">Kiosco</a>
@@ -91,7 +92,7 @@
         </div>
     </main>
 
-    <!-- MODAL CREAR USUARIO -->
+    <!-- Modal Nuevo Usuario -->
     <div id="modal-crear-usuario" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
         <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-md shadow-2xl">
             <h3 class="font-bold text-lg mb-4 text-white">Alta de Personal</h3>

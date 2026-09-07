@@ -3,22 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Principal | GymPro</title>
+    <title>Dashboard Principal | {{ gym_nombre }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
-    <!-- Navbar -->
+    <!-- Navbar Superior Completa -->
     <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between sticky top-0 z-40">
         <div class="flex items-center space-x-6">
             <div class="flex items-center space-x-2">
                 <div class="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center font-black text-emerald-400 text-sm">
                     GP
                 </div>
-                <span class="text-xl font-bold tracking-tight text-white">Gym<span class="text-emerald-400">Pro</span></span>
+                <span class="text-xl font-bold tracking-tight text-white">{{ gym_nombre }}</span>
             </div>
             <nav class="hidden lg:flex space-x-4 text-sm font-medium">
                 <a href="/dashboard" class="text-emerald-400 border-b-2 border-emerald-500 pb-1">Dashboard</a>
                 <a href="/socios" class="text-slate-400 hover:text-white transition">Socios</a>
+                <a href="/rutinas" class="text-slate-400 hover:text-white transition">Rutinas</a>
                 <a href="/clases-profesores" class="text-slate-400 hover:text-white transition">Clases y Profes</a>
                 <a href="/caja-pagos" class="text-slate-400 hover:text-white transition">Caja / Cuotas</a>
                 <a href="/kiosco" class="text-slate-400 hover:text-white transition">Kiosco</a>
@@ -37,9 +38,11 @@
         </div>
     </header>
 
+    <!-- Menú Responsive Móvil -->
     <nav class="lg:hidden bg-slate-900 border-b border-slate-800 px-4 py-2.5 flex overflow-x-auto space-x-4 text-xs font-medium">
         <a href="/dashboard" class="text-emerald-400 font-bold whitespace-nowrap">Dashboard</a>
         <a href="/socios" class="text-slate-400 whitespace-nowrap">Socios</a>
+        <a href="/rutinas" class="text-slate-400 whitespace-nowrap">Rutinas</a>
         <a href="/clases-profesores" class="text-slate-400 whitespace-nowrap">Clases y Profes</a>
         <a href="/caja-pagos" class="text-slate-400 whitespace-nowrap">Caja / Cuotas</a>
         <a href="/kiosco" class="text-slate-400 whitespace-nowrap">Kiosco</a>
@@ -50,6 +53,7 @@
         <a href="/molinete" class="text-slate-400 whitespace-nowrap">Molinete</a>
     </nav>
 
+    <!-- Contenido Principal -->
     <main class="flex-1 p-6 max-w-7xl mx-auto w-full space-y-6">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
@@ -60,15 +64,16 @@
                 <a href="/socios" class="bg-emerald-600 hover:bg-emerald-500 px-3.5 py-2 rounded-xl text-xs font-bold text-white transition flex items-center gap-1.5 shadow-lg shadow-emerald-600/20">
                     <span>+</span> Nuevo Socio
                 </a>
-                <a href="/caja-pagos" class="bg-indigo-600 hover:bg-indigo-500 px-3.5 py-2 rounded-xl text-xs font-bold text-white transition flex items-center gap-1.5 shadow-lg shadow-indigo-600/20">
-                    <span>💵</span> Cobrar Cuota
+                <a href="/rutinas" class="bg-indigo-600 hover:bg-indigo-500 px-3.5 py-2 rounded-xl text-xs font-bold text-white transition flex items-center gap-1.5 shadow-lg shadow-indigo-600/20">
+                    <span>🏋️‍♂️</span> Armar Rutina
                 </a>
-                <a href="/kiosco" class="bg-slate-800 hover:bg-slate-700 px-3.5 py-2 rounded-xl text-xs font-bold text-slate-200 transition flex items-center gap-1.5">
-                    <span>🛒</span> Venta Kiosco
+                <a href="/caja-pagos" class="bg-slate-800 hover:bg-slate-700 px-3.5 py-2 rounded-xl text-xs font-bold text-slate-200 transition flex items-center gap-1.5">
+                    <span>💵</span> Cobrar Cuota
                 </a>
             </div>
         </div>
 
+        <!-- Tarjetas de Métricas -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
                 <div class="flex justify-between items-center text-slate-400 mb-2">
@@ -107,7 +112,20 @@
             </div>
         </div>
 
+        <!-- Módulos de Acceso Rápido -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <a href="/rutinas" class="bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-indigo-500/50 rounded-2xl p-4 transition group">
+                <div class="flex items-center space-x-3">
+                    <div class="p-3 bg-indigo-500/10 rounded-xl text-indigo-400 text-xl group-hover:scale-110 transition-transform">
+                        🏋️‍♂️
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-sm text-white">Planes & Rutinas</h3>
+                        <p class="text-xs text-slate-400">Armado y seguimiento de entrenamientos.</p>
+                    </div>
+                </div>
+            </a>
+
             <a href="/balance" class="bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-emerald-500/50 rounded-2xl p-4 transition group">
                 <div class="flex items-center space-x-3">
                     <div class="p-3 bg-emerald-500/10 rounded-xl text-emerald-400 text-xl group-hover:scale-110 transition-transform">
@@ -120,31 +138,20 @@
                 </div>
             </a>
 
-            <a href="/molinete" class="bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-indigo-500/50 rounded-2xl p-4 transition group">
+            <a href="/molinete" class="bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-sky-500/50 rounded-2xl p-4 transition group">
                 <div class="flex items-center space-x-3">
-                    <div class="p-3 bg-indigo-500/10 rounded-xl text-indigo-400 text-xl group-hover:scale-110 transition-transform">
+                    <div class="p-3 bg-sky-500/10 rounded-xl text-sky-400 text-xl group-hover:scale-110 transition-transform">
                         🔄
                     </div>
                     <div>
                         <h3 class="font-bold text-sm text-white">Simulador Molinete</h3>
-                        <p class="text-xs text-slate-400">Probar lector QR y respuesta eléctrica.</p>
-                    </div>
-                </div>
-            </a>
-
-            <a href="/" target="_blank" class="bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-sky-500/50 rounded-2xl p-4 transition group">
-                <div class="flex items-center space-x-3">
-                    <div class="p-3 bg-sky-500/10 rounded-xl text-sky-400 text-xl group-hover:scale-110 transition-transform">
-                        📱
-                    </div>
-                    <div>
-                        <h3 class="font-bold text-sm text-white">Portal de Acceso Web</h3>
-                        <p class="text-xs text-slate-400">Ingreso directo para socios y personal.</p>
+                        <p class="text-xs text-slate-400">Validar acceso QR en tiempo real.</p>
                     </div>
                 </div>
             </a>
         </div>
 
+        <!-- Tabla de Auditoría del Molinete -->
         <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
             <div class="flex justify-between items-center mb-4">
                 <div>
@@ -197,9 +204,9 @@
                                 {% elif a.motivo == 'PERMISO_ESPECIAL' %}
                                     <span class="text-indigo-400 font-medium">Permiso especial administrativo</span>
                                 {% elif a.motivo == 'CUOTA_VENCIDA' %}
-                                    <span class="text-rose-400 font-medium">Falta regularizar cuota</span>
+                                    <span class="text-rose-400 font-medium">Cuota impaga / vencida</span>
                                 {% elif a.motivo == 'APTO_MEDICO_VENCIDO' %}
-                                    <span class="text-amber-400 font-medium">Falta regularizar apto médico</span>
+                                    <span class="text-amber-400 font-medium">Apto médico vencido</span>
                                 {% elif a.motivo == 'BLOQUEADO_MANUAL' %}
                                     <span class="text-rose-400 font-medium">Bloqueado por administración</span>
                                 {% else %}
