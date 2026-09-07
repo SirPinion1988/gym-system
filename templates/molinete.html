@@ -8,15 +8,17 @@
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col items-center justify-center p-6">
     <div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl text-center">
-        <!-- Indicador de Semáforo -->
-        <div id="luz-estado" class="w-24 h-24 rounded-full mx-auto mb-6 bg-slate-800 border-4 border-slate-700 flex items-center justify-center transition-all duration-300 shadow-xl">
-            <span id="icono-estado" class="text-3xl">🔒</span>
+        <!-- Indicador de Semáforo / Foto -->
+        <div id="contenedor-foto" class="mb-4">
+            <div id="luz-estado" class="w-24 h-24 rounded-full mx-auto mb-2 bg-slate-800 border-4 border-slate-700 flex items-center justify-center transition-all duration-300 shadow-xl overflow-hidden">
+                <span id="icono-estado" class="text-3xl">🔒</span>
+            </div>
         </div>
 
         <h1 class="text-2xl font-black text-white mb-1">Molinete de Acceso</h1>
         <p id="texto-estado" class="text-xs text-slate-400 mb-6">Listo para leer código QR o token de acceso.</p>
 
-        <!-- Formulario de Token QR -->
+        <!-- Formulario Token QR -->
         <form id="form-molinete" onsubmit="validarAcceso(event)" class="space-y-4">
             <div>
                 <input type="text" id="input-token" required placeholder="Escanear o ingresar token QR..." class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm font-mono text-center text-white focus:outline-none focus:border-emerald-500">
@@ -53,18 +55,22 @@
                 });
                 const data = await res.json();
 
+                // Si viene foto del socio, mostrarla en el círculo
+                if (data.foto) {
+                    luz.innerHTML = `<img src="${data.foto}" class="w-full h-full object-cover">`;
+                } else {
+                    luz.innerHTML = `<span id="icono-estado" class="text-3xl">${data.abrir ? '🔓' : (data.color === 'yellow' ? '⚠️' : '⛔')}</span>`;
+                }
+
                 if (data.abrir) {
-                    luz.className = "w-24 h-24 rounded-full mx-auto mb-6 bg-emerald-500 border-4 border-emerald-300 flex items-center justify-center transition-all duration-300 shadow-2xl shadow-emerald-500/50";
-                    icono.innerText = "🔓";
+                    luz.className = "w-24 h-24 rounded-full mx-auto mb-2 bg-emerald-500 border-4 border-emerald-300 flex items-center justify-center transition-all duration-300 shadow-2xl shadow-emerald-500/50 overflow-hidden";
                     texto.innerHTML = `<b class="text-emerald-400 text-sm font-bold">${data.socio}</b><br/><span class="text-emerald-300 font-semibold">${data.motivo}</span>`;
                 } else {
                     if (data.color === 'yellow') {
-                        luz.className = "w-24 h-24 rounded-full mx-auto mb-6 bg-amber-500 border-4 border-amber-300 flex items-center justify-center transition-all duration-300 shadow-2xl shadow-amber-500/50";
-                        icono.innerText = "⚠️";
+                        luz.className = "w-24 h-24 rounded-full mx-auto mb-2 bg-amber-500 border-4 border-amber-300 flex items-center justify-center transition-all duration-300 shadow-2xl shadow-amber-500/50 overflow-hidden";
                         texto.innerHTML = `<b class="text-amber-400 text-sm font-bold">${data.socio || ''}</b><br/><span class="text-amber-300 font-semibold">${data.motivo}</span>`;
                     } else {
-                        luz.className = "w-24 h-24 rounded-full mx-auto mb-6 bg-rose-600 border-4 border-rose-400 flex items-center justify-center transition-all duration-300 shadow-2xl shadow-rose-600/50";
-                        icono.innerText = "⛔";
+                        luz.className = "w-24 h-24 rounded-full mx-auto mb-2 bg-rose-600 border-4 border-rose-400 flex items-center justify-center transition-all duration-300 shadow-2xl shadow-rose-600/50 overflow-hidden";
                         texto.innerHTML = `<b class="text-rose-400 text-sm font-bold">${data.socio || ''}</b><br/><span class="text-rose-300 font-semibold">${data.motivo}</span>`;
                     }
                 }
@@ -73,8 +79,8 @@
                 input.focus();
 
                 setTimeout(() => {
-                    luz.className = "w-24 h-24 rounded-full mx-auto mb-6 bg-slate-800 border-4 border-slate-700 flex items-center justify-center transition-all duration-300 shadow-xl";
-                    icono.innerText = "🔒";
+                    luz.className = "w-24 h-24 rounded-full mx-auto mb-2 bg-slate-800 border-4 border-slate-700 flex items-center justify-center transition-all duration-300 shadow-xl overflow-hidden";
+                    luz.innerHTML = `<span id="icono-estado" class="text-3xl">🔒</span>`;
                     texto.innerText = "Listo para leer código QR o token de acceso.";
                 }, 4000);
 

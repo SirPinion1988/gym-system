@@ -8,7 +8,7 @@ from pathlib import Path
 from datetime import date, datetime, timedelta
 from typing import Optional
 
-from fastapi import FastAPI, Depends, Request, Form, HTTPException, status, Response, BackgroundTasks
+from fastapi import FastAPI, Depends, Request, Form, HTTPException, status, Response, BackgroundTasks, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -152,7 +152,7 @@ def procesar_factura_y_mail(socio_id: int, pago_id: int, monto: float, concepto:
         db.close()
 
 
-# --- PÁGINA PRINCIPAL Y LOGIN DUAL ---
+# --- RUTAS DE LOGIN Y PORTAL INICIAL ---
 
 @app.get("/", response_class=HTMLResponse)
 def index_hub(request: Request, user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user)):
@@ -287,7 +287,7 @@ def dashboard(
         socios_activos = db.query(models.Socio).filter(models.Socio.estado_cuota == "ACTIVO").count() or 0
         total_profes = db.query(models.Profesor).count() or 0
         total_clases = db.query(models.Actividad).count() or 0
-        ultimos_accesos = db.query(models.RegistroAcceso).order_by(models.RegistroAcceso.fecha_hora.desc()).limit(10).all() or []
+        ultimos_accesos = db.query(models.RegistroAcceso).options(joinedload(models.RegistroAcceso.socio)).order_by(models.RegistroAcceso.fecha_hora.desc()).limit(10).all() or []
     except Exception as e:
         print(f"Error dashboard: {e}")
         total_socios, socios_activos, total_profes, total_clases, ultimos_accesos = 0, 0, 0, 0, []
@@ -324,7 +324,7 @@ def socios_view(request: Request, user: Optional[models.UsuarioSistema] = Depend
 
 
 @app.post("/socios/crear")
-def crear_socio(
+async def crear_socio(
     dni: str = Form(...),
     nombre: str = Form(...),
     apellido: str = Form(...),
@@ -333,6 +333,7 @@ def crear_socio(
     email: str = Form(...),
     plan_id: Optional[int] = Form(None),
     apto_medico_realizacion: Optional[str] = Form(None),
+    foto: Optional[UploadFile] = File(None),
     user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -350,6 +351,14 @@ def crear_socio(
 
     token_qr = f"GYM-{dni.strip()}-{uuid.uuid4().hex[:8]}"
 
+    foto_b64 = None
+    if foto and foto.filename:
+        contenido = await foto.read()
+        if contenido:
+            tipo_mime = foto.content_type or "image/jpeg"
+            b64_str = base64.b64encode(contenido).decode('utf-8')
+            foto_b64 = f"data:{tipo_mime};base64,{b64_str}"
+
     nuevo_socio = models.Socio(
         dni=dni.strip(),
         nombre=nombre.strip(),
@@ -359,6 +368,7 @@ def crear_socio(
         celular=celular.strip(),
         email=email.strip().lower(),
         plan_id=plan_id,
+        foto_base64=foto_b64,
         apto_medico_realizacion=f_realizacion,
         apto_medico_vencimiento=f_vto_apto,
         qr_token=token_qr,
@@ -372,7 +382,7 @@ def crear_socio(
 
 
 @app.post("/socios/editar/{socio_id}")
-def editar_socio(
+async def editar_socio(
     socio_id: int,
     nombre: str = Form(...),
     apellido: str = Form(...),
@@ -382,6 +392,7 @@ def editar_socio(
     email: str = Form(...),
     plan_id: Optional[int] = Form(None),
     apto_medico_realizacion: Optional[str] = Form(None),
+    foto: Optional[UploadFile] = File(None),
     user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -401,6 +412,13 @@ def editar_socio(
     socio.celular = celular.strip()
     socio.email = email.strip().lower()
     socio.plan_id = plan_id
+
+    if foto and foto.filename:
+        contenido = await foto.read()
+        if contenido:
+            tipo_mime = foto.content_type or "image/jpeg"
+            b64_str = base64.b64encode(contenido).decode('utf-8')
+            socio.foto_base64 = f"data:{tipo_mime};base64,{b64_str}"
 
     if apto_medico_realizacion and apto_medico_realizacion.strip():
         f_realiz = datetime.strptime(apto_medico_realizacion.strip(), "%Y-%m-%d").date()
@@ -464,11 +482,12 @@ def ver_qr_socio(socio_id: int, user: Optional[models.UsuarioSistema] = Depends(
         "socio": f"{socio.nombre} {socio.apellido}",
         "dni": socio.dni,
         "token": socio.qr_token,
+        "foto": socio.foto_base64,
         "qr_image": f"data:image/png;base64,{qr_b64}"
     })
 
 
-# --- MÓDULO PROFESORES Y CLASES ---
+# --- CLASES Y PROFESORES ---
 
 @app.get("/clases-profesores", response_class=HTMLResponse)
 def clases_profesores_view(request: Request, user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user), db: Session = Depends(get_db)):
@@ -477,14 +496,12 @@ def clases_profesores_view(request: Request, user: Optional[models.UsuarioSistem
     
     try:
         profesores = db.query(models.Profesor).order_by(models.Profesor.id.desc()).all()
-    except Exception as e:
-        print(f"Error profesores: {e}")
+    except Exception:
         profesores = []
 
     try:
         actividades = db.query(models.Actividad).options(joinedload(models.Actividad.profesor)).order_by(models.Actividad.id.desc()).all()
-    except Exception as e:
-        print(f"Error actividades: {e}")
+    except Exception:
         actividades = []
 
     return templates.TemplateResponse(request=request, name="clases_profesores.html", context={
@@ -549,15 +566,31 @@ def crear_clase(
     return RedirectResponse(url="/clases-profesores", status_code=status.HTTP_302_FOUND)
 
 
-# --- MÓDULO PLANES Y PAGOS (CAJA) ---
+# --- MÓDULO CAJA Y CUOTAS (BLINDADO CON JOINEDLOAD Y PROTECCIÓN CONTRA ERRORES) ---
 
 @app.get("/caja-pagos", response_class=HTMLResponse)
 def pagos_view(request: Request, user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user), db: Session = Depends(get_db)):
     if not user:
         return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
-    pagos = db.query(models.Pago).order_by(models.Pago.id.desc()).limit(25).all()
-    socios = db.query(models.Socio).all()
-    planes = db.query(models.Plan).order_by(models.Plan.id.asc()).all()
+    
+    try:
+        pagos = db.query(models.Pago).options(joinedload(models.Pago.socio)).order_by(models.Pago.id.desc()).limit(30).all() or []
+    except Exception as e:
+        print(f"Error cargando pagos: {e}")
+        pagos = []
+
+    try:
+        socios = db.query(models.Socio).order_by(models.Socio.apellido.asc()).all() or []
+    except Exception as e:
+        print(f"Error cargando socios: {e}")
+        socios = []
+
+    try:
+        planes = db.query(models.Plan).order_by(models.Plan.id.asc()).all() or []
+    except Exception as e:
+        print(f"Error cargando planes: {e}")
+        planes = []
+
     return templates.TemplateResponse(request=request, name="caja_pagos.html", context={
         "user": user,
         "pagos": pagos,
@@ -649,14 +682,25 @@ def editar_plan(
     return RedirectResponse(url="/caja-pagos", status_code=status.HTTP_302_FOUND)
 
 
-# --- MÓDULO PRODUCTOS / KIOSCO ---
+# --- MÓDULO KIOSCO (PÁGINA EXCLUSIVA) ---
 
 @app.get("/kiosco", response_class=HTMLResponse)
 def kiosco_view(request: Request, user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user), db: Session = Depends(get_db)):
     if not user:
         return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
-    productos = db.query(models.Producto).filter(models.Producto.activo == True).order_by(models.Producto.nombre.asc()).all()
-    ventas = db.query(models.VentaProducto).order_by(models.VentaProducto.id.desc()).limit(15).all()
+    
+    try:
+        productos = db.query(models.Producto).filter(models.Producto.activo == True).order_by(models.Producto.nombre.asc()).all() or []
+    except Exception as e:
+        print(f"Error cargando productos: {e}")
+        productos = []
+
+    try:
+        ventas = db.query(models.VentaProducto).options(joinedload(models.VentaProducto.producto)).order_by(models.VentaProducto.id.desc()).limit(20).all() or []
+    except Exception as e:
+        print(f"Error cargando ventas: {e}")
+        ventas = []
+
     return templates.TemplateResponse(request=request, name="kiosco.html", context={
         "user": user,
         "productos": productos,
@@ -815,7 +859,7 @@ def exportar_socios_csv(user: Optional[models.UsuarioSistema] = Depends(auth.get
     return Response(content=output.getvalue(), media_type="text/csv", headers={"Content-Disposition": "attachment; filename=padron_socios.csv"})
 
 
-# --- DESCARGA FACTURA PDF ---
+# --- FACTURA ARCA DESCARGA ---
 
 @app.get("/factura/descargar/{factura_id}")
 def descargar_factura_pdf(factura_id: int, db: Session = Depends(get_db)):
@@ -847,7 +891,7 @@ def descargar_factura_pdf(factura_id: int, db: Session = Depends(get_db)):
     )
 
 
-# --- CREDENCIAL DIGITAL DEL SOCIO ---
+# --- CREDENCIAL DIGITAL ---
 
 @app.get("/socio/credencial/{socio_id}", response_class=HTMLResponse)
 def socio_credencial_view(socio_id: int, request: Request, db: Session = Depends(get_db)):
@@ -858,7 +902,6 @@ def socio_credencial_view(socio_id: int, request: Request, db: Session = Depends
     hoy = date.today()
     cuota_al_dia = (socio.estado_cuota == "ACTIVO") and (not socio.fecha_vencimiento_cuota or socio.fecha_vencimiento_cuota >= hoy)
     apto_al_dia = socio.apto_medico_vencimiento and socio.apto_medico_vencimiento >= hoy
-    
     permiso_especial = socio.habilitacion_manual_hasta and socio.habilitacion_manual_hasta >= hoy
     
     habilitado = (not socio.bloqueado_manual) and (permiso_especial or (cuota_al_dia and apto_al_dia))
@@ -895,8 +938,8 @@ def socio_credencial_view(socio_id: int, request: Request, db: Session = Depends
             }
             pref_result = mp_sdk.preference().create(preference_data)
             init_point_mp = pref_result["response"].get("init_point")
-        except Exception as e:
-            print(f"Alerta preferencia MP: {e}")
+        except Exception:
+            pass
 
     ultima_factura = db.query(models.Factura).filter(models.Factura.socio_id == socio.id).order_by(models.Factura.id.desc()).first()
 
@@ -913,7 +956,7 @@ def socio_credencial_view(socio_id: int, request: Request, db: Session = Depends
     })
 
 
-# --- WEBHOOK OFICIAL MERCADO PAGO ---
+# --- WEBHOOK MP ---
 
 @app.post("/api/pagos/webhook")
 async def mercadopago_webhook(request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
@@ -989,28 +1032,30 @@ def validar_molinete(token: str = Form(...), db: Session = Depends(get_db)):
     hoy = date.today()
 
     if not socio:
-        return JSONResponse({"abrir": False, "motivo": "QR no registrado", "color": "red"})
+        return JSONResponse({"abrir": False, "motivo": "QR no registrado", "color": "red", "foto": None})
+
+    foto_url = socio.foto_base64
 
     if socio.bloqueado_manual:
         db.add(models.RegistroAcceso(socio_id=socio.id, resultado="DENEGADO", motivo="BLOQUEADO_MANUAL"))
         db.commit()
-        return JSONResponse({"abrir": False, "socio": f"{socio.nombre} {socio.apellido}", "motivo": "Bloqueado por Administración", "color": "red"})
+        return JSONResponse({"abrir": False, "socio": f"{socio.nombre} {socio.apellido}", "motivo": "Bloqueado por Administración", "color": "red", "foto": foto_url})
 
     if socio.habilitacion_manual_hasta and socio.habilitacion_manual_hasta >= hoy:
         db.add(models.RegistroAcceso(socio_id=socio.id, resultado="PERMITIDO", motivo="PERMISO_ESPECIAL"))
         db.commit()
-        return JSONResponse({"abrir": True, "socio": f"{socio.nombre} {socio.apellido}", "motivo": "Acceso Permitido (Permiso Especial)", "color": "green"})
+        return JSONResponse({"abrir": True, "socio": f"{socio.nombre} {socio.apellido}", "motivo": "Acceso Permitido (Permiso Especial)", "color": "green", "foto": foto_url})
 
     if socio.estado_cuota != "ACTIVO" or (socio.fecha_vencimiento_cuota and socio.fecha_vencimiento_cuota < hoy):
         db.add(models.RegistroAcceso(socio_id=socio.id, resultado="DENEGADO", motivo="CUOTA_VENCIDA"))
         db.commit()
-        return JSONResponse({"abrir": False, "socio": f"{socio.nombre} {socio.apellido}", "motivo": "Falta Regularizar Cuota", "color": "red"})
+        return JSONResponse({"abrir": False, "socio": f"{socio.nombre} {socio.apellido}", "motivo": "Falta Regularizar Cuota", "color": "red", "foto": foto_url})
 
     if not socio.apto_medico_vencimiento or socio.apto_medico_vencimiento < hoy:
         db.add(models.RegistroAcceso(socio_id=socio.id, resultado="DENEGADO", motivo="APTO_MEDICO_VENCIDO"))
         db.commit()
-        return JSONResponse({"abrir": False, "socio": f"{socio.nombre} {socio.apellido}", "motivo": "Falta Regularizar Apto Médico", "color": "yellow"})
+        return JSONResponse({"abrir": False, "socio": f"{socio.nombre} {socio.apellido}", "motivo": "Falta Regularizar Apto Médico", "color": "yellow", "foto": foto_url})
 
     db.add(models.RegistroAcceso(socio_id=socio.id, resultado="PERMITIDO", motivo="OK"))
     db.commit()
-    return JSONResponse({"abrir": True, "socio": f"{socio.nombre} {socio.apellido}", "motivo": "Acceso Permitido", "color": "green"})
+    return JSONResponse({"abrir": True, "socio": f"{socio.nombre} {socio.apellido}", "motivo": "Acceso Permitido", "color": "green", "foto": foto_url})

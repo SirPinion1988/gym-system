@@ -9,16 +9,25 @@
 <body class="bg-slate-950 text-slate-100 min-h-screen p-4 flex flex-col items-center justify-center">
 
     <div class="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl relative overflow-hidden">
-        <!-- Encabezado con Logo -->
+        <!-- Encabezado con Logo o Foto -->
         <div class="flex justify-between items-center mb-4">
-            <div>
-                <span class="text-[10px] uppercase tracking-wider text-emerald-400 font-bold">Gimnasio Fitness</span>
-                <h1 class="text-xl font-black text-white">{{ socio.nombre }} {{ socio.apellido }}</h1>
-                <p class="text-xs text-slate-400 font-mono">DNI: {{ socio.dni }}</p>
+            <div class="flex items-center space-x-3">
+                {% if socio.foto_base64 %}
+                    <img src="{{ socio.foto_base64 }}" alt="Foto Socio" class="w-12 h-12 rounded-full object-cover border-2 border-emerald-500 shadow-md">
+                {% else %}
+                    <div class="w-12 h-12 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 font-bold text-sm">
+                        {{ socio.nombre[:1] }}{{ socio.apellido[:1] }}
+                    </div>
+                {% endif %}
+                <div>
+                    <span class="text-[10px] uppercase tracking-wider text-emerald-400 font-bold">Gimnasio Fitness</span>
+                    <h1 class="text-base font-black text-white leading-tight">{{ socio.nombre }} {{ socio.apellido }}</h1>
+                    <p class="text-xs text-slate-400 font-mono">DNI: {{ socio.dni }}</p>
+                </div>
             </div>
             <div>
-                <img src="/static/logo.png" onerror="this.style.display='none'; document.getElementById('cred-logo-fallback').style.display='inline-flex';" class="h-10 max-w-[80px] object-contain" alt="Logo">
-                <div id="cred-logo-fallback" class="hidden w-10 h-10 rounded-full bg-emerald-500/20 border border-emerald-500/40 items-center justify-center font-black text-emerald-400 text-sm">
+                <img src="/static/logo.png" onerror="this.style.display='none'; document.getElementById('cred-logo-fallback').style.display='inline-flex';" class="h-9 max-w-[70px] object-contain" alt="Logo">
+                <div id="cred-logo-fallback" class="hidden w-9 h-9 rounded-full bg-emerald-500/20 border border-emerald-500/40 items-center justify-center font-black text-emerald-400 text-xs">
                     GP
                 </div>
             </div>

@@ -55,6 +55,9 @@ class Socio(Base):
     celular = Column(String(30), nullable=False)
     email = Column(String(120), unique=True, index=True, nullable=False)
     
+    # Foto de Perfil en Base64
+    foto_base64 = Column(Text, nullable=True)
+
     # Apto Médico
     apto_medico_realizacion = Column(Date, nullable=True)
     apto_medico_vencimiento = Column(Date, nullable=True)
