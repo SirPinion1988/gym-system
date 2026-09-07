@@ -3,6 +3,7 @@ import uuid
 import qrcode
 import io
 import base64
+from pathlib import Path
 from datetime import date, datetime, timedelta
 from fastapi import FastAPI, Depends, Request, Form, HTTPException, status, Response
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
@@ -18,9 +19,18 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Sistema de Gestión de Gimnasio")
 
-# Montar estáticos y plantillas
-app.mount("/static", StaticFiles(directory="static"), name="static")
-templates = Jinja2Templates(directory="templates")
+# --- RESOLUCIÓN DE RUTAS ABSOLUTAS ---
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+STATIC_DIR = BASE_DIR / "static"
+TEMPLATES_DIR = BASE_DIR / "templates"
+
+# Asegurar que existan directorios requeridos
+STATIC_DIR.mkdir(parents=True, exist_ok=True)
+TEMPLATES_DIR.mkdir(parents=True, exist_ok=True)
+
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
 def calcular_edad(fecha_nac: date) -> int:
@@ -42,18 +52,20 @@ def generar_qr_base64(texto: str) -> str:
 def startup_db_init():
     from .database import SessionLocal
     db = SessionLocal()
-    admin = db.query(models.UsuarioSistema).filter_by(username="admin").first()
-    if not admin:
-        admin_user = models.UsuarioSistema(
-            username="admin",
-            password_hash=auth.hash_password("admin123"),
-            nombre="Administrador General",
-            rol="ADMIN",
-            activo=True
-        )
-        db.add(admin_user)
-        db.commit()
-    db.close()
+    try:
+        admin = db.query(models.UsuarioSistema).filter_by(username="admin").first()
+        if not admin:
+            admin_user = models.UsuarioSistema(
+                username="admin",
+                password_hash=auth.hash_password("admin123"),
+                nombre="Administrador General",
+                rol="ADMIN",
+                activo=True
+            )
+            db.add(admin_user)
+            db.commit()
+    finally:
+        db.close()
 
 
 # --- RUTAS DE ADMINISTRACIÓN / OPERADOR ---
@@ -267,7 +279,7 @@ def validar_molinete(token: str = Form(...), db: Session = Depends(get_db)):
     if not socio:
         return JSONResponse({"abrir": False, "motivo": "QR no registrado", "color": "red"})
 
-    # 1. Verificación de bloqueo manual por administración
+    # 1. Bloqueo manual por el Administrador
     if socio.bloqueado_manual:
         log = models.RegistroAcceso(socio_id=socio.id, resultado="DENEGADO", motivo="BLOQUEO_ADMINISTRATIVO")
         db.add(log)
