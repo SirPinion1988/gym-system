@@ -23,11 +23,14 @@
                 <a href="/caja-pagos" class="text-slate-400 hover:text-white transition">Caja / Cuotas</a>
                 <a href="/kiosco" class="text-slate-400 hover:text-white transition">Kiosco</a>
                 <a href="/balance" class="text-slate-400 hover:text-white transition">Balance & Reportes</a>
+                {% if user.rol == 'ADMIN' %}
+                <a href="/usuarios" class="text-slate-400 hover:text-white transition">Usuarios</a>
+                {% endif %}
                 <a href="/molinete" class="text-slate-400 hover:text-white transition">Molinete</a>
             </nav>
         </div>
         <div class="flex items-center space-x-4">
-            <span class="text-xs text-slate-400 hidden sm:inline">{{ user.nombre if user else 'Administrador' }}</span>
+            <span class="text-xs text-slate-400 hidden sm:inline">{{ user.nombre }} ({{ user.rol }})</span>
             <a href="/logout" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg text-rose-400 transition font-semibold">
                 Cerrar Sesión
             </a>
@@ -42,6 +45,9 @@
         <a href="/caja-pagos" class="text-slate-400 whitespace-nowrap">Caja / Cuotas</a>
         <a href="/kiosco" class="text-slate-400 whitespace-nowrap">Kiosco</a>
         <a href="/balance" class="text-slate-400 whitespace-nowrap">Balance & Reportes</a>
+        {% if user.rol == 'ADMIN' %}
+        <a href="/usuarios" class="text-slate-400 whitespace-nowrap">Usuarios</a>
+        {% endif %}
         <a href="/molinete" class="text-slate-400 whitespace-nowrap">Molinete</a>
     </nav>
 
@@ -131,20 +137,20 @@
                 </div>
             </a>
 
-            <a href="/socio/login" target="_blank" class="bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-sky-500/50 rounded-2xl p-4 transition group">
+            <a href="/" target="_blank" class="bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-sky-500/50 rounded-2xl p-4 transition group">
                 <div class="flex items-center space-x-3">
                     <div class="p-3 bg-sky-500/10 rounded-xl text-sky-400 text-xl group-hover:scale-110 transition-transform">
                         📱
                     </div>
                     <div>
-                        <h3 class="font-bold text-sm text-white">Portal del Socio</h3>
-                        <p class="text-xs text-slate-400">Credencial digital y botón de pago online.</p>
+                        <h3 class="font-bold text-sm text-white">Portal de Acceso Web</h3>
+                        <p class="text-xs text-slate-400">Ingreso directo para socios y personal.</p>
                     </div>
                 </div>
             </a>
         </div>
 
-        <!-- Tabla de Accesos por Molinete con Protección contra Nulos -->
+        <!-- Tabla de Accesos por Molinete -->
         <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
             <div class="flex justify-between items-center mb-4">
                 <div>

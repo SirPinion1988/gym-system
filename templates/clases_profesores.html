@@ -35,9 +35,9 @@
             <div class="flex justify-between items-center mb-4">
                 <div>
                     <h2 class="text-xl font-bold text-white">Profesores y Sueldos</h2>
-                    <p class="text-xs text-slate-400">Entrenadores y acuerdos económicos.</p>
+                    <p class="text-xs text-slate-400">Entrenadores y masa salarial.</p>
                 </div>
-                <button onclick="document.getElementById('modal-profe').classList.remove('hidden')" class="bg-emerald-500 hover:bg-emerald-600 px-3 py-1.5 rounded-lg text-xs font-bold text-white transition flex items-center gap-1">
+                <button onclick="document.getElementById('modal-profe').classList.remove('hidden')" class="bg-emerald-500 hover:bg-emerald-600 px-3 py-1.5 rounded-lg text-xs font-bold text-white transition flex items-center gap-1 shadow-lg shadow-emerald-500/20">
                     <span>+</span> Nuevo Profesor
                 </button>
             </div>
@@ -60,13 +60,13 @@
                             </td>
                             <td class="p-3 text-xs text-indigo-400">{{ p.especialidad or 'General' }}</td>
                             <td class="p-3 text-xs font-mono font-bold text-emerald-400">
-                                ${{ "%.2f"|format(p.sueldo if p.sueldo is not none else 0.0) }}
+                                ${{ "%.2f"|format(p.sueldo) if (p.sueldo is defined and p.sueldo is not none) else "0.00" }}
                                 <span class="text-[10px] text-slate-400 font-sans block">({{ p.tipo_sueldo or 'MENSUAL' }})</span>
                             </td>
                             <td class="p-3 text-xs text-slate-400">{{ p.celular }}</td>
                         </tr>
                         {% else %}
-                        <tr><td colspan="4" class="p-6 text-center text-slate-500 text-xs">No hay profesores registrados.</td></tr>
+                        <tr><td colspan="4" class="p-6 text-center text-slate-500 text-xs">No hay profesores registrados aún.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -80,7 +80,7 @@
                     <h2 class="text-xl font-bold text-white">Grilla de Clases</h2>
                     <p class="text-xs text-slate-400">Horarios, cupos y profesor a cargo.</p>
                 </div>
-                <button onclick="document.getElementById('modal-clase').classList.remove('hidden')" class="bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 rounded-lg text-xs font-bold text-white transition flex items-center gap-1">
+                <button onclick="document.getElementById('modal-clase').classList.remove('hidden')" class="bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 rounded-lg text-xs font-bold text-white transition flex items-center gap-1 shadow-lg shadow-indigo-600/20">
                     <span>+</span> Nueva Clase
                 </button>
             </div>
@@ -103,13 +103,13 @@
                                 {% if c.profesor %}
                                     <span class="text-indigo-300 font-medium">{{ c.profesor.nombre }} {{ c.profesor.apellido }}</span>
                                 {% else %}
-                                    <span class="text-slate-500 italic">A designar</span>
+                                    <span class="text-slate-500 italic">Sin profesor asignado</span>
                                 {% endif %}
                             </td>
                             <td class="p-3 text-center text-xs font-bold text-emerald-400">{{ c.cupo_maximo }}</td>
                         </tr>
                         {% else %}
-                        <tr><td colspan="4" class="p-6 text-center text-slate-500 text-xs">No hay clases configuradas.</td></tr>
+                        <tr><td colspan="4" class="p-6 text-center text-slate-500 text-xs">No hay clases configuradas aún.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>

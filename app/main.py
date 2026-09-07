@@ -12,7 +12,7 @@ from fastapi import FastAPI, Depends, Request, Form, HTTPException, status, Resp
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 
 import mercadopago
@@ -20,12 +20,10 @@ import mercadopago
 from .database import engine, Base, get_db
 from . import models, auth, billing
 
-# Creación de tablas
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Sistema de Gestión de Gimnasio - GymPro")
 
-# Inicialización SDK Mercado Pago
 MP_ACCESS_TOKEN = os.getenv("MP_ACCESS_TOKEN", "TEST-0000000000000000-000000-00000000000000000000000000000000-000000000")
 mp_sdk = mercadopago.SDK(MP_ACCESS_TOKEN)
 APP_PUBLIC_URL = os.getenv("APP_PUBLIC_URL", "https://gimnasio-app-0qhn.onrender.com")
@@ -78,7 +76,7 @@ def startup_db_init():
             db.add(admin_user)
             db.commit()
         else:
-            admin.password_hash = auth.hash_password("admin123")
+            admin.rol = "ADMIN"
             admin.activo = True
             db.commit()
 
@@ -147,22 +145,23 @@ def procesar_factura_y_mail(socio_id: int, pago_id: int, monto: float, concepto:
         db.close()
 
 
-# --- AUTENTICACIÓN ---
+# --- PÁGINA PRINCIPAL Y LOGIN DUAL ---
 
 @app.get("/", response_class=HTMLResponse)
-def index(request: Request, user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user)):
-    if not user:
-        return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
-    return RedirectResponse(url="/dashboard", status_code=status.HTTP_302_FOUND)
+def index_hub(request: Request, user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user)):
+    if user:
+        return RedirectResponse(url="/dashboard", status_code=status.HTTP_302_FOUND)
+    return templates.TemplateResponse(request=request, name="login_hub.html", context={"error_admin": None, "error_socio": None})
 
 
 @app.get("/login", response_class=HTMLResponse)
 def login_view(request: Request):
-    return templates.TemplateResponse(request=request, name="login.html", context={"error": None})
+    return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
 
 
-@app.post("/login")
-def login_action(
+# 1. Login Administrativo (Usuario y Contraseña)
+@app.post("/login/admin")
+def login_admin_action(
     request: Request,
     response: Response,
     username: str = Form(...),
@@ -171,7 +170,7 @@ def login_action(
 ):
     user = db.query(models.UsuarioSistema).filter(models.UsuarioSistema.username == username.strip()).first()
     if not user or not auth.verify_password(password, user.password_hash) or not user.activo:
-        return templates.TemplateResponse(request=request, name="login.html", context={"error": "Usuario o contraseña inválidos."})
+        return templates.TemplateResponse(request=request, name="login_hub.html", context={"error_admin": "Credenciales inválidas o cuenta inactiva.", "error_socio": None})
 
     token = auth.create_access_token(data={"sub": user.username, "rol": user.rol})
     resp = RedirectResponse(url="/dashboard", status_code=status.HTTP_302_FOUND)
@@ -179,11 +178,92 @@ def login_action(
     return resp
 
 
+# 2. Login de Socios (DNI y Correo Electrónico)
+@app.post("/login/socio")
+def login_socio_action(
+    request: Request,
+    dni: str = Form(...),
+    email: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    socio = db.query(models.Socio).filter(
+        models.Socio.dni == dni.strip(),
+        models.Socio.email == email.strip().lower()
+    ).first()
+
+    if not socio:
+        return templates.TemplateResponse(request=request, name="login_hub.html", context={"error_socio": "DNI o correo no coinciden con nuestros registros.", "error_admin": None})
+
+    return RedirectResponse(url=f"/socio/credencial/{socio.id}", status_code=status.HTTP_302_FOUND)
+
+
 @app.get("/logout")
 def logout():
-    resp = RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
+    resp = RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
     resp.delete_cookie("access_token")
     return resp
+
+
+# --- GESTIÓN DE USUARIOS DEL SISTEMA (EXCLUSIVO ADMIN GENERAL) ---
+
+@app.get("/usuarios", response_class=HTMLResponse)
+def usuarios_sistema_view(
+    request: Request,
+    user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    if not user:
+        return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
+    if user.rol != "ADMIN":
+        raise HTTPException(status_code=403, detail="Acceso denegado: solo el Administrador General puede gestionar cuentas.")
+
+    usuarios = db.query(models.UsuarioSistema).order_by(models.UsuarioSistema.id.asc()).all()
+    return templates.TemplateResponse(request=request, name="usuarios.html", context={"user": user, "usuarios": usuarios})
+
+
+@app.post("/usuarios/crear")
+def crear_usuario_sistema(
+    nombre: str = Form(...),
+    username: str = Form(...),
+    password: str = Form(...),
+    rol: str = Form("OPERADOR"),
+    user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    if not user or user.rol != "ADMIN":
+        raise HTTPException(status_code=403, detail="Acceso denegado.")
+
+    existe = db.query(models.UsuarioSistema).filter_by(username=username.strip()).first()
+    if existe:
+        raise HTTPException(status_code=400, detail="El nombre de usuario ya está en uso.")
+
+    nuevo_usuario = models.UsuarioSistema(
+        nombre=nombre.strip(),
+        username=username.strip(),
+        password_hash=auth.hash_password(password),
+        rol=rol,
+        activo=True
+    )
+    db.add(nuevo_usuario)
+    db.commit()
+    return RedirectResponse(url="/usuarios", status_code=status.HTTP_302_FOUND)
+
+
+@app.post("/usuarios/toggle-estado/{usuario_id}")
+def toggle_estado_usuario(
+    usuario_id: int,
+    user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    if not user or user.rol != "ADMIN":
+        raise HTTPException(status_code=403)
+    target = db.query(models.UsuarioSistema).get(usuario_id)
+    if not target or target.id == user.id:
+        raise HTTPException(status_code=400, detail="No puedes desactivar tu propia cuenta.")
+
+    target.activo = not target.activo
+    db.commit()
+    return RedirectResponse(url="/usuarios", status_code=status.HTTP_302_FOUND)
 
 
 # --- DASHBOARD ---
@@ -195,7 +275,7 @@ def dashboard(
     db: Session = Depends(get_db)
 ):
     if not user:
-        return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
+        return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
 
     try:
         total_socios = db.query(models.Socio).count() or 0
@@ -226,7 +306,7 @@ def dashboard(
 @app.get("/socios", response_class=HTMLResponse)
 def socios_view(request: Request, user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user), db: Session = Depends(get_db)):
     if not user:
-        return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
+        return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
     socios = db.query(models.Socio).order_by(models.Socio.id.desc()).all()
     planes = db.query(models.Plan).filter(models.Plan.activo == True).all()
     return templates.TemplateResponse(request=request, name="socios.html", context={"user": user, "socios": socios, "planes": planes})
@@ -246,7 +326,7 @@ def crear_socio(
     db: Session = Depends(get_db)
 ):
     if not user:
-        return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
+        return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
 
     f_nac = datetime.strptime(fecha_nacimiento.strip(), "%Y-%m-%d").date()
     edad = calcular_edad(f_nac)
@@ -338,9 +418,20 @@ def toggle_bloqueo_socio(socio_id: int, user: Optional[models.UsuarioSistema] = 
 @app.get("/clases-profesores", response_class=HTMLResponse)
 def clases_profesores_view(request: Request, user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user), db: Session = Depends(get_db)):
     if not user:
-        return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
-    profesores = db.query(models.Profesor).order_by(models.Profesor.id.desc()).all()
-    actividades = db.query(models.Actividad).order_by(models.Actividad.id.desc()).all()
+        return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
+    
+    try:
+        profesores = db.query(models.Profesor).order_by(models.Profesor.id.desc()).all()
+    except Exception as e:
+        print(f"Error consultando profesores: {e}")
+        profesores = []
+
+    try:
+        actividades = db.query(models.Actividad).options(joinedload(models.Actividad.profesor)).order_by(models.Actividad.id.desc()).all()
+    except Exception as e:
+        print(f"Error consultando actividades: {e}")
+        actividades = []
+
     return templates.TemplateResponse(request=request, name="clases_profesores.html", context={
         "user": user,
         "profesores": profesores,
@@ -361,15 +452,16 @@ def crear_profesor(
     db: Session = Depends(get_db)
 ):
     if not user:
-        return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
+        return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
+    
     profe = models.Profesor(
         nombre=nombre.strip(),
         apellido=apellido.strip(),
         dni=dni.strip(),
         celular=celular.strip(),
         especialidad=especialidad.strip(),
-        sueldo=sueldo,
-        tipo_sueldo=tipo_sueldo
+        sueldo=sueldo if sueldo else 0.0,
+        tipo_sueldo=tipo_sueldo if tipo_sueldo else "MENSUAL"
     )
     db.add(profe)
     db.commit()
@@ -387,9 +479,9 @@ def crear_clase(
     db: Session = Depends(get_db)
 ):
     if not user:
-        return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
+        return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
     
-    pid = int(profesor_id) if profesor_id and profesor_id.strip() else None
+    pid = int(profesor_id) if profesor_id and profesor_id.strip() and profesor_id.strip() != "" else None
     clase = models.Actividad(
         nombre=nombre.strip(),
         dias=dias.strip(),
@@ -407,7 +499,7 @@ def crear_clase(
 @app.get("/caja-pagos", response_class=HTMLResponse)
 def pagos_view(request: Request, user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user), db: Session = Depends(get_db)):
     if not user:
-        return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
+        return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
     pagos = db.query(models.Pago).order_by(models.Pago.id.desc()).limit(25).all()
     socios = db.query(models.Socio).all()
     planes = db.query(models.Plan).order_by(models.Plan.id.asc()).all()
@@ -429,7 +521,7 @@ def registrar_pago(
     db: Session = Depends(get_db)
 ):
     if not user:
-        return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
+        return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
     socio = db.query(models.Socio).get(socio_id)
     plan = db.query(models.Plan).get(plan_id)
     if not socio or not plan:
@@ -469,7 +561,7 @@ def crear_plan(
     db: Session = Depends(get_db)
 ):
     if not user:
-        return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
+        return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
     p = models.Plan(nombre=nombre.strip(), precio=precio, dias_duracion=dias_duracion, descripcion=descripcion.strip(), activo=True)
     db.add(p)
     db.commit()
@@ -507,7 +599,7 @@ def editar_plan(
 @app.get("/kiosco", response_class=HTMLResponse)
 def kiosco_view(request: Request, user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user), db: Session = Depends(get_db)):
     if not user:
-        return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
+        return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
     productos = db.query(models.Producto).filter(models.Producto.activo == True).order_by(models.Producto.nombre.asc()).all()
     ventas = db.query(models.VentaProducto).order_by(models.VentaProducto.id.desc()).limit(15).all()
     return templates.TemplateResponse(request=request, name="kiosco.html", context={
@@ -527,7 +619,7 @@ def crear_producto(
     db: Session = Depends(get_db)
 ):
     if not user:
-        return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
+        return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
     prod = models.Producto(nombre=nombre.strip(), categoria=categoria, precio_venta=precio_venta, stock=stock)
     db.add(prod)
     db.commit()
@@ -543,7 +635,7 @@ def vender_producto(
     db: Session = Depends(get_db)
 ):
     if not user:
-        return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
+        return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
     prod = db.query(models.Producto).get(producto_id)
     if not prod or prod.stock < cantidad:
         return RedirectResponse(url="/kiosco?error=stock_insuficiente", status_code=status.HTTP_302_FOUND)
@@ -561,18 +653,16 @@ def vender_producto(
 @app.get("/balance", response_class=HTMLResponse)
 def balance_view(request: Request, user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user), db: Session = Depends(get_db)):
     if not user:
-        return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
+        return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
 
     hoy = date.today()
     primer_dia_mes = date(hoy.year, hoy.month, 1)
     primer_dia_anio = date(hoy.year, 1, 1)
 
-    # 1. Ingresos por Cuotas
     cuotas_hoy = db.query(func.coalesce(func.sum(models.Pago.monto), 0.0)).filter(func.date(models.Pago.fecha_pago) == hoy).scalar()
     cuotas_mes = db.query(func.coalesce(func.sum(models.Pago.monto), 0.0)).filter(models.Pago.fecha_pago >= primer_dia_mes).scalar()
     cuotas_anio = db.query(func.coalesce(func.sum(models.Pago.monto), 0.0)).filter(models.Pago.fecha_pago >= primer_dia_anio).scalar()
 
-    # 2. Ingresos por Kiosco
     kiosco_hoy = db.query(func.coalesce(func.sum(models.VentaProducto.total), 0.0)).filter(func.date(models.VentaProducto.fecha) == hoy).scalar()
     kiosco_mes = db.query(func.coalesce(func.sum(models.VentaProducto.total), 0.0)).filter(models.VentaProducto.fecha >= primer_dia_mes).scalar()
     kiosco_anio = db.query(func.coalesce(func.sum(models.VentaProducto.total), 0.0)).filter(models.VentaProducto.fecha >= primer_dia_anio).scalar()
@@ -581,16 +671,13 @@ def balance_view(request: Request, user: Optional[models.UsuarioSistema] = Depen
     total_ingresos_mes = cuotas_mes + kiosco_mes
     total_ingresos_anio = cuotas_anio + kiosco_anio
 
-    # 3. Egresos Operativos (Sueldos)
     egreso_sueldos_mensual = db.query(func.coalesce(func.sum(models.Profesor.sueldo), 0.0)).filter(models.Profesor.activo == True).scalar()
     meses_transcurridos = hoy.month
     egreso_sueldos_anual = egreso_sueldos_mensual * meses_transcurridos
 
-    # 4. Ganancia Neta Real
     ganancia_neta_mes = total_ingresos_mes - egreso_sueldos_mensual
     ganancia_neta_anio = total_ingresos_anio - egreso_sueldos_anual
 
-    # 5. Vencimientos
     limite_proximo = hoy + timedelta(days=7)
     vencidos = db.query(models.Socio).filter(models.Socio.fecha_vencimiento_cuota < hoy).order_by(models.Socio.fecha_vencimiento_cuota.asc()).all()
     proximos_vencer = db.query(models.Socio).filter(
@@ -704,31 +791,13 @@ def descargar_factura_pdf(factura_id: int, db: Session = Depends(get_db)):
     )
 
 
-# --- PORTAL DEL SOCIO Y CHECKOUT MP ---
-
-@app.get("/socio/login", response_class=HTMLResponse)
-def socio_login_view(request: Request):
-    return templates.TemplateResponse(request=request, name="socio_login.html", context={"error": None})
-
-
-@app.post("/socio/login")
-def socio_login_action(request: Request, dni: str = Form(...), email: str = Form(...), db: Session = Depends(get_db)):
-    socio = db.query(models.Socio).filter(
-        models.Socio.dni == dni.strip(),
-        models.Socio.email == email.strip().lower()
-    ).first()
-
-    if not socio:
-        return templates.TemplateResponse(request=request, name="socio_login.html", context={"error": "Datos no registrados."})
-
-    return RedirectResponse(url=f"/socio/credencial/{socio.id}", status_code=status.HTTP_302_FOUND)
-
+# --- CREDENCIAL DIGITAL DEL SOCIO ---
 
 @app.get("/socio/credencial/{socio_id}", response_class=HTMLResponse)
 def socio_credencial_view(socio_id: int, request: Request, db: Session = Depends(get_db)):
     socio = db.query(models.Socio).get(socio_id)
     if not socio:
-        return RedirectResponse(url="/socio/login", status_code=status.HTTP_302_FOUND)
+        return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
 
     hoy = date.today()
     cuota_al_dia = (socio.estado_cuota == "ACTIVO") and (not socio.fecha_vencimiento_cuota or socio.fecha_vencimiento_cuota >= hoy)
@@ -850,7 +919,7 @@ async def mercadopago_webhook(request: Request, background_tasks: BackgroundTask
 @app.get("/molinete", response_class=HTMLResponse)
 def molinete_view(request: Request, user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user)):
     if not user:
-        return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
+        return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
     return templates.TemplateResponse(request=request, name="molinete.html", context={"user": user})
 
 

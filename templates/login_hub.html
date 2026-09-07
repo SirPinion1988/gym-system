@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acceso al Sistema | GymPro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl">
+        <!-- Logo de GymPro -->
+        <div class="text-center mb-6">
+            <div class="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 font-black text-xl mb-3">
+                GP
+            </div>
+            <h1 class="text-2xl font-black text-white">Gym<span class="text-emerald-400">Pro</span></h1>
+            <p class="text-xs text-slate-400">Portal de Gestión y Acceso de Socios</p>
+        </div>
+
+        <!-- Selector de Modo de Acceso (Pestañas) -->
+        <div class="grid grid-cols-2 gap-2 bg-slate-950 p-1.5 rounded-2xl border border-slate-800 mb-6">
+            <button id="tab-socio" onclick="mostrarPestana('socio')" class="py-2 rounded-xl text-xs font-bold transition bg-emerald-500 text-white shadow-md">
+                👤 Soy Socio
+            </button>
+            <button id="tab-admin" onclick="mostrarPestana('admin')" class="py-2 rounded-xl text-xs font-bold transition text-slate-400 hover:text-white">
+                🔐 Personal / Admin
+            </button>
+        </div>
+
+        <!-- FORMULARIO 1: SOCIOS (DNI Y MAIL) -->
+        <div id="form-socio" class="space-y-4">
+            <div class="text-left mb-2">
+                <h2 class="text-sm font-bold text-white">Credencial Digital del Socio</h2>
+                <p class="text-[11px] text-slate-400">Ingresa tu documento y correo registrado para ver tu QR y estado de cuota.</p>
+            </div>
+
+            {% if error_socio %}
+            <div class="bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs p-3 rounded-xl text-center">
+                {{ error_socio }}
+            </div>
+            {% endif %}
+
+            <form action="/login/socio" method="POST" class="space-y-3">
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">DNI (Sin puntos ni espacios)</label>
+                    <input type="text" name="dni" required placeholder="Ej: 38450123" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500">
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Correo Electrónico</label>
+                    <input type="email" name="email" required placeholder="tuemail@ejemplo.com" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500">
+                </div>
+                <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 rounded-xl text-sm transition shadow-lg shadow-emerald-500/20">
+                    Ingresar a mi Credencial
+                </button>
+            </form>
+        </div>
+
+        <!-- FORMULARIO 2: ADMINISTRACIÓN (USUARIO Y CONTRASEÑA) -->
+        <div id="form-admin" class="space-y-4 hidden">
+            <div class="text-left mb-2">
+                <h2 class="text-sm font-bold text-white">Ingreso de Personal</h2>
+                <p class="text-[11px] text-slate-400">Acceso a recepción, caja, socios y control administrativo.</p>
+            </div>
+
+            {% if error_admin %}
+            <div class="bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs p-3 rounded-xl text-center">
+                {{ error_admin }}
+            </div>
+            {% endif %}
+
+            <form action="/login/admin" method="POST" class="space-y-3">
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Nombre de Usuario</label>
+                    <input type="text" name="username" required placeholder="Usuario" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Contraseña</label>
+                    <input type="password" name="password" required placeholder="••••••••" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500">
+                </div>
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl text-sm transition shadow-lg shadow-indigo-600/20">
+                    Iniciar Sesión en Panel
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function mostrarPestana(tipo) {
+            const formSocio = document.getElementById('form-socio');
+            const formAdmin = document.getElementById('form-admin');
+            const tabSocio = document.getElementById('tab-socio');
+            const tabAdmin = document.getElementById('tab-admin');
+
+            if (tipo === 'socio') {
+                formSocio.classList.remove('hidden');
+                formAdmin.classList.add('hidden');
+                tabSocio.className = "py-2 rounded-xl text-xs font-bold transition bg-emerald-500 text-white shadow-md";
+                tabAdmin.className = "py-2 rounded-xl text-xs font-bold transition text-slate-400 hover:text-white";
+            } else {
+                formAdmin.classList.remove('hidden');
+                formSocio.classList.add('hidden');
+                tabAdmin.className = "py-2 rounded-xl text-xs font-bold transition bg-indigo-600 text-white shadow-md";
+                tabSocio.className = "py-2 rounded-xl text-xs font-bold transition text-slate-400 hover:text-white";
+            }
+        }
+
+        // Si hubo error de admin al recargar, mostrar pestaña admin directamente
+        {% if error_admin %}
+            mostrarPestana('admin');
+        {% endif %}
+    </script>
+</body>
+</html>
