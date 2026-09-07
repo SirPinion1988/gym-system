@@ -14,30 +14,30 @@
             <div>
                 <span class="text-[10px] uppercase tracking-wider text-emerald-400 font-bold">Gimnasio Fitness</span>
                 <h1 class="text-xl font-black text-white">{{ socio.nombre }} {{ socio.apellido }}</h1>
-                <p class="text-xs text-slate-400">DNI: {{ socio.dni }}</p>
+                <p class="text-xs text-slate-400 font-mono">DNI: {{ socio.dni }}</p>
             </div>
             <div class="w-10 h-10 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center font-black text-emerald-400 text-sm">
                 GP
             </div>
         </div>
 
-        <!-- Banner de Estado de Acceso en Molinete -->
+        <!-- Banner de Estado -->
         {% if habilitado %}
-            <div class="bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-xs font-bold px-3 py-2 rounded-xl text-center mb-4 flex items-center justify-center gap-2">
-                <span>🔓</span> ACCESO HABILITADO AL MOLINETE
+            <div class="bg-emerald-950/70 border border-emerald-500/40 text-emerald-300 text-xs font-black px-3 py-2.5 rounded-xl text-center mb-4 flex items-center justify-center gap-2 shadow-lg">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> PUEDE PASAR AL GIMNASIO
             </div>
         {% else %}
-            <div class="bg-rose-950/60 border border-rose-500/40 text-rose-300 text-xs font-bold px-3 py-2 rounded-xl text-center mb-4 flex items-center justify-center gap-2">
-                <span>🔒</span> ACCESO INHABILITADO (REGULARIZAR)
+            <div class="bg-rose-950/70 border border-rose-500/40 text-rose-300 text-xs font-black px-3 py-2.5 rounded-xl text-center mb-4 flex items-center justify-center gap-2 shadow-lg">
+                <span>🔒</span> FALTA REGULARIZAR INGRESO
             </div>
         {% endif %}
 
-        <!-- Código QR para el Molinete -->
+        <!-- Código QR -->
         <div class="bg-white p-4 rounded-2xl mx-auto mb-4 text-center shadow-inner">
             <img src="{{ qr_image }}" alt="Código QR Socio" class="w-48 h-48 mx-auto">
         </div>
 
-        <!-- Datos del Plan y Cuota -->
+        <!-- Detalles Socio -->
         <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4 mb-4 space-y-2">
             <div class="flex justify-between items-center text-xs">
                 <span class="text-slate-400">Plan contratado:</span>
@@ -45,42 +45,39 @@
             </div>
             <div class="flex justify-between items-center text-xs">
                 <span class="text-slate-400">Cuota mensual:</span>
-                <span class="font-bold text-emerald-400 text-sm">${{ plan.precio if plan else '0' }}</span>
+                <span class="font-bold text-emerald-400 text-sm">${{ "%.2f"|format(plan.precio) if plan else '0.00' }}</span>
             </div>
             <div class="flex justify-between items-center text-xs">
-                <span class="text-slate-400">Vencimiento:</span>
-                <span class="font-mono text-slate-300">{{ socio.fecha_vencimiento_cuota.strftime('%d/%m/%Y') if socio.fecha_vencimiento_cuota else 'Pendiente' }}</span>
-            </div>
-            <div class="flex justify-between items-center text-xs">
-                <span class="text-slate-400">Apto médico:</span>
-                <span class="{% if apto_al_dia %}text-emerald-400{% else %}text-amber-400{% endif %} font-semibold">
-                    {{ 'Vigente' if apto_al_dia else 'Presentar Apto' }}
+                <span class="text-slate-400">Vencimiento Cuota:</span>
+                <span class="font-mono {% if cuota_al_dia %}text-slate-200{% else %}text-rose-400 font-bold{% endif %}">
+                    {{ socio.fecha_vencimiento_cuota.strftime('%d/%m/%Y') if socio.fecha_vencimiento_cuota else 'Pendiente' }}
                 </span>
             </div>
+            <div class="flex justify-between items-center text-xs">
+                <span class="text-slate-400">Apto Médico (1 Año):</span>
+                <span class="{% if apto_al_dia %}text-emerald-400{% else %}text-amber-400 font-bold{% endif %}">
+                    {{ 'Vigente hasta ' + socio.apto_medico_vencimiento.strftime('%d/%m/%Y') if apto_al_dia else 'Presentar Apto' }}
+                </span>
+            </div>
+            {% if permiso_especial %}
+            <div class="flex justify-between items-center text-xs pt-1 border-t border-slate-800/80">
+                <span class="text-indigo-400">Permiso Especial:</span>
+                <span class="font-bold text-indigo-300">Habilitado hasta {{ socio.habilitacion_manual_hasta.strftime('%d/%m/%Y') }}</span>
+            </div>
+            {% endif %}
         </div>
 
-        <!-- Opciones de Pago / Regularización -->
+        <!-- Pago Online -->
         <div class="space-y-2.5">
-            {% if not cuota_al_dia %}
-                {% if init_point_mp %}
-                    <a href="{{ init_point_mp }}" class="w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 rounded-xl text-sm transition flex items-center justify-center gap-2 shadow-lg shadow-sky-500/20">
-                        <span>💳</span> Pagar Cuota con Mercado Pago (${{ plan.precio }})
-                    </a>
-                {% else %}
-                    <div class="text-center p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-400">
-                        Paga en recepción para habilitar el molinete.
-                    </div>
-                {% endif %}
+            {% if not cuota_al_dia and init_point_mp %}
+                <a href="{{ init_point_mp }}" class="w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 rounded-xl text-sm transition flex items-center justify-center gap-2 shadow-lg shadow-sky-500/20">
+                    <span>💳</span> Pagar Cuota con Mercado Pago (${{ "%.2f"|format(plan.precio) }})
+                </a>
                 <p class="text-[10px] text-center text-slate-500">
-                    Al acreditarse el pago, el molinete se habilita y recibes tu Factura ARCA por correo.
+                    Tu acceso se renueva de forma automática al acreditarse el pago.
                 </p>
-            {% else %}
-                <div class="text-center p-2.5 bg-emerald-950/30 border border-emerald-800/40 rounded-xl text-xs text-emerald-300 font-medium">
-                    ✨ Estás al día. ¡Buen entrenamiento!
-                </div>
             {% endif %}
 
-            <!-- Botón de descarga de la última Factura ARCA -->
             {% if ultima_factura %}
                 <a href="/factura/descargar/{{ ultima_factura.id }}" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold py-2 rounded-xl text-xs transition flex items-center justify-center gap-2 border border-slate-700">
                     <span>📄</span> Descargar Factura ARCA (CAE: {{ ultima_factura.cae }})
@@ -89,7 +86,7 @@
         </div>
 
         <div class="mt-4 pt-3 border-t border-slate-800 text-center">
-            <a href="/socio/login" class="text-xs text-slate-400 hover:text-white">Cerrar mi credencial</a>
+            <a href="/" class="text-xs text-slate-400 hover:text-white">Cerrar credencial</a>
         </div>
     </div>
 

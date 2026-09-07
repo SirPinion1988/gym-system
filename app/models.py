@@ -30,7 +30,7 @@ class Profesor(Base):
     celular = Column(String(30), nullable=False)
     especialidad = Column(String(100), nullable=True)
     sueldo = Column(Float, default=0.0)
-    tipo_sueldo = Column(String(30), default="MENSUAL") # MENSUAL, POR_HORA
+    tipo_sueldo = Column(String(30), default="MENSUAL")
     activo = Column(Boolean, default=True)
     clases = relationship("Actividad", back_populates="profesor")
 
@@ -54,14 +54,21 @@ class Socio(Base):
     edad = Column(Integer, nullable=False)
     celular = Column(String(30), nullable=False)
     email = Column(String(120), unique=True, index=True, nullable=False)
+    
+    # Apto Médico
+    apto_medico_realizacion = Column(Date, nullable=True)
     apto_medico_vencimiento = Column(Date, nullable=True)
+    
     qr_token = Column(String(100), unique=True, index=True, nullable=False)
     estado_cuota = Column(String(20), default="ACTIVO")
     fecha_vencimiento_cuota = Column(Date, nullable=True)
     plan_id = Column(Integer, ForeignKey("planes.id"), nullable=True)
-    bloqueado_manual = Column(Boolean, default=False)
     
-    # Débito Automático / Tarjeta
+    # Control Manual y Prórrogas
+    bloqueado_manual = Column(Boolean, default=False)
+    habilitacion_manual_hasta = Column(Date, nullable=True)
+    
+    # Tarjeta / Débito Automático
     tarjeta_tokenizada = Column(Boolean, default=False)
     tarjeta_marca = Column(String(30), nullable=True)
     tarjeta_ultimos4 = Column(String(4), nullable=True)

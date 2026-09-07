@@ -49,6 +49,13 @@ def calcular_edad(fecha_nac: date) -> int:
     return hoy.year - fecha_nac.year - ((hoy.month, hoy.day) < (fecha_nac.month, fecha_nac.day))
 
 
+def sumar_un_anio(fecha: date) -> date:
+    try:
+        return fecha.replace(year=fecha.year + 1)
+    except ValueError:
+        return fecha + (date(fecha.year + 1, 3, 1) - date(fecha.year, 3, 1))
+
+
 def generar_qr_base64(texto: str) -> str:
     qr = qrcode.QRCode(version=1, box_size=8, border=2)
     qr.add_data(texto)
@@ -159,7 +166,6 @@ def login_view(request: Request):
     return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
 
 
-# 1. Login Administrativo (Usuario y Contraseña)
 @app.post("/login/admin")
 def login_admin_action(
     request: Request,
@@ -178,7 +184,6 @@ def login_admin_action(
     return resp
 
 
-# 2. Login de Socios (DNI y Correo Electrónico)
 @app.post("/login/socio")
 def login_socio_action(
     request: Request,
@@ -204,7 +209,7 @@ def logout():
     return resp
 
 
-# --- GESTIÓN DE USUARIOS DEL SISTEMA (EXCLUSIVO ADMIN GENERAL) ---
+# --- USUARIOS DEL SISTEMA ---
 
 @app.get("/usuarios", response_class=HTMLResponse)
 def usuarios_sistema_view(
@@ -215,7 +220,7 @@ def usuarios_sistema_view(
     if not user:
         return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
     if user.rol != "ADMIN":
-        raise HTTPException(status_code=403, detail="Acceso denegado: solo el Administrador General puede gestionar cuentas.")
+        raise HTTPException(status_code=403, detail="Acceso denegado.")
 
     usuarios = db.query(models.UsuarioSistema).order_by(models.UsuarioSistema.id.asc()).all()
     return templates.TemplateResponse(request=request, name="usuarios.html", context={"user": user, "usuarios": usuarios})
@@ -309,7 +314,13 @@ def socios_view(request: Request, user: Optional[models.UsuarioSistema] = Depend
         return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
     socios = db.query(models.Socio).order_by(models.Socio.id.desc()).all()
     planes = db.query(models.Plan).filter(models.Plan.activo == True).all()
-    return templates.TemplateResponse(request=request, name="socios.html", context={"user": user, "socios": socios, "planes": planes})
+    hoy = date.today()
+    return templates.TemplateResponse(request=request, name="socios.html", context={
+        "user": user,
+        "socios": socios,
+        "planes": planes,
+        "hoy": hoy
+    })
 
 
 @app.post("/socios/crear")
@@ -321,7 +332,7 @@ def crear_socio(
     celular: str = Form(...),
     email: str = Form(...),
     plan_id: Optional[int] = Form(None),
-    apto_medico_vencimiento: Optional[str] = Form(None),
+    apto_medico_realizacion: Optional[str] = Form(None),
     user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -330,7 +341,13 @@ def crear_socio(
 
     f_nac = datetime.strptime(fecha_nacimiento.strip(), "%Y-%m-%d").date()
     edad = calcular_edad(f_nac)
-    f_apto = datetime.strptime(apto_medico_vencimiento.strip(), "%Y-%m-%d").date() if apto_medico_vencimiento and apto_medico_vencimiento.strip() else None
+    
+    f_realizacion = None
+    f_vto_apto = None
+    if apto_medico_realizacion and apto_medico_realizacion.strip():
+        f_realizacion = datetime.strptime(apto_medico_realizacion.strip(), "%Y-%m-%d").date()
+        f_vto_apto = sumar_un_anio(f_realizacion)
+
     token_qr = f"GYM-{dni.strip()}-{uuid.uuid4().hex[:8]}"
 
     nuevo_socio = models.Socio(
@@ -342,13 +359,83 @@ def crear_socio(
         celular=celular.strip(),
         email=email.strip().lower(),
         plan_id=plan_id,
-        apto_medico_vencimiento=f_apto,
+        apto_medico_realizacion=f_realizacion,
+        apto_medico_vencimiento=f_vto_apto,
         qr_token=token_qr,
         estado_cuota="ACTIVO",
         fecha_vencimiento_cuota=date.today() + timedelta(days=30),
         bloqueado_manual=False
     )
     db.add(nuevo_socio)
+    db.commit()
+    return RedirectResponse(url="/socios", status_code=status.HTTP_302_FOUND)
+
+
+@app.post("/socios/editar/{socio_id}")
+def editar_socio(
+    socio_id: int,
+    nombre: str = Form(...),
+    apellido: str = Form(...),
+    dni: str = Form(...),
+    fecha_nacimiento: str = Form(...),
+    celular: str = Form(...),
+    email: str = Form(...),
+    plan_id: Optional[int] = Form(None),
+    apto_medico_realizacion: Optional[str] = Form(None),
+    user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    if not user:
+        raise HTTPException(status_code=401)
+    socio = db.query(models.Socio).get(socio_id)
+    if not socio:
+        raise HTTPException(status_code=404)
+
+    socio.nombre = nombre.strip()
+    socio.apellido = apellido.strip()
+    socio.dni = dni.strip()
+    
+    f_nac = datetime.strptime(fecha_nacimiento.strip(), "%Y-%m-%d").date()
+    socio.fecha_nacimiento = f_nac
+    socio.edad = calcular_edad(f_nac)
+    socio.celular = celular.strip()
+    socio.email = email.strip().lower()
+    socio.plan_id = plan_id
+
+    if apto_medico_realizacion and apto_medico_realizacion.strip():
+        f_realiz = datetime.strptime(apto_medico_realizacion.strip(), "%Y-%m-%d").date()
+        socio.apto_medico_realizacion = f_realiz
+        socio.apto_medico_vencimiento = sumar_un_anio(f_realiz)
+    else:
+        socio.apto_medico_realizacion = None
+        socio.apto_medico_vencimiento = None
+
+    db.commit()
+    return RedirectResponse(url="/socios", status_code=status.HTTP_302_FOUND)
+
+
+@app.post("/socios/gestionar-permiso/{socio_id}")
+def gestionar_permiso_socio(
+    socio_id: int,
+    accion: str = Form(...),
+    dias_duracion: int = Form(...),
+    user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    if not user:
+        raise HTTPException(status_code=401)
+    socio = db.query(models.Socio).get(socio_id)
+    if not socio:
+        raise HTTPException(status_code=404)
+
+    hoy = date.today()
+    if accion == "habilitar":
+        socio.bloqueado_manual = False
+        socio.habilitacion_manual_hasta = hoy + timedelta(days=dias_duracion)
+    else:
+        socio.bloqueado_manual = True
+        socio.habilitacion_manual_hasta = None
+
     db.commit()
     return RedirectResponse(url="/socios", status_code=status.HTTP_302_FOUND)
 
@@ -361,26 +448,6 @@ def asignar_plan_socio(socio_id: int, plan_id: int = Form(...), user: Optional[m
     if not socio:
         raise HTTPException(status_code=404)
     socio.plan_id = plan_id
-    db.commit()
-    return RedirectResponse(url="/socios", status_code=status.HTTP_302_FOUND)
-
-
-@app.post("/socios/vincular-tarjeta/{socio_id}")
-def vincular_tarjeta_socio(
-    socio_id: int,
-    marca: str = Form(...),
-    ultimos4: str = Form(...),
-    user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user),
-    db: Session = Depends(get_db)
-):
-    if not user:
-        raise HTTPException(status_code=401)
-    socio = db.query(models.Socio).get(socio_id)
-    if not socio:
-        raise HTTPException(status_code=404)
-    socio.tarjeta_tokenizada = True
-    socio.tarjeta_marca = marca.upper()
-    socio.tarjeta_ultimos4 = ultimos4.strip()[-4:]
     db.commit()
     return RedirectResponse(url="/socios", status_code=status.HTTP_302_FOUND)
 
@@ -401,18 +468,6 @@ def ver_qr_socio(socio_id: int, user: Optional[models.UsuarioSistema] = Depends(
     })
 
 
-@app.post("/socios/toggle-bloqueo/{socio_id}")
-def toggle_bloqueo_socio(socio_id: int, user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user), db: Session = Depends(get_db)):
-    if not user:
-        raise HTTPException(status_code=401)
-    socio = db.query(models.Socio).get(socio_id)
-    if not socio:
-        raise HTTPException(status_code=404)
-    socio.bloqueado_manual = not socio.bloqueado_manual
-    db.commit()
-    return RedirectResponse(url="/socios", status_code=status.HTTP_302_FOUND)
-
-
 # --- MÓDULO PROFESORES Y CLASES ---
 
 @app.get("/clases-profesores", response_class=HTMLResponse)
@@ -423,13 +478,13 @@ def clases_profesores_view(request: Request, user: Optional[models.UsuarioSistem
     try:
         profesores = db.query(models.Profesor).order_by(models.Profesor.id.desc()).all()
     except Exception as e:
-        print(f"Error consultando profesores: {e}")
+        print(f"Error profesores: {e}")
         profesores = []
 
     try:
         actividades = db.query(models.Actividad).options(joinedload(models.Actividad.profesor)).order_by(models.Actividad.id.desc()).all()
     except Exception as e:
-        print(f"Error consultando actividades: {e}")
+        print(f"Error actividades: {e}")
         actividades = []
 
     return templates.TemplateResponse(request=request, name="clases_profesores.html", context={
@@ -749,12 +804,13 @@ def exportar_socios_csv(user: Optional[models.UsuarioSistema] = Depends(auth.get
     socios = db.query(models.Socio).order_by(models.Socio.id.asc()).all()
     output = io.StringIO()
     writer = csv.writer(output, delimiter=";")
-    writer.writerow(["ID", "DNI", "Nombre", "Apellido", "Email", "Celular", "Plan", "Estado Cuota", "Vencimiento Cuota", "Tarjeta Vinculada"])
+    writer.writerow(["ID", "DNI", "Nombre", "Apellido", "Email", "Celular", "Plan", "Estado Cuota", "Vencimiento Cuota", "Vencimiento Apto", "Acceso Especial"])
     for s in socios:
         plan_nombre = s.plan.nombre if s.plan else "Sin Plan"
-        venc = s.fecha_vencimiento_cuota.strftime("%Y-%m-%d") if s.fecha_vencimiento_cuota else "N/A"
-        tarjeta = f"{s.tarjeta_marca} ****{s.tarjeta_ultimos4}" if s.tarjeta_tokenizada else "No"
-        writer.writerow([s.id, s.dni, s.nombre, s.apellido, s.email, s.celular, plan_nombre, s.estado_cuota, venc, tarjeta])
+        venc_cuota = s.fecha_vencimiento_cuota.strftime("%Y-%m-%d") if s.fecha_vencimiento_cuota else "N/A"
+        venc_apto = s.apto_medico_vencimiento.strftime("%Y-%m-%d") if s.apto_medico_vencimiento else "Sin Apto"
+        permiso = s.habilitacion_manual_hasta.strftime("%Y-%m-%d") if s.habilitacion_manual_hasta else "No"
+        writer.writerow([s.id, s.dni, s.nombre, s.apellido, s.email, s.celular, plan_nombre, s.estado_cuota, venc_cuota, venc_apto, permiso])
     
     return Response(content=output.getvalue(), media_type="text/csv", headers={"Content-Disposition": "attachment; filename=padron_socios.csv"})
 
@@ -801,8 +857,11 @@ def socio_credencial_view(socio_id: int, request: Request, db: Session = Depends
 
     hoy = date.today()
     cuota_al_dia = (socio.estado_cuota == "ACTIVO") and (not socio.fecha_vencimiento_cuota or socio.fecha_vencimiento_cuota >= hoy)
-    apto_al_dia = not socio.apto_medico_vencimiento or socio.apto_medico_vencimiento >= hoy
-    habilitado = cuota_al_dia and apto_al_dia and not socio.bloqueado_manual
+    apto_al_dia = socio.apto_medico_vencimiento and socio.apto_medico_vencimiento >= hoy
+    
+    permiso_especial = socio.habilitacion_manual_hasta and socio.habilitacion_manual_hasta >= hoy
+    
+    habilitado = (not socio.bloqueado_manual) and (permiso_especial or (cuota_al_dia and apto_al_dia))
     qr_b64 = generar_qr_base64(socio.qr_token)
 
     plan_asignado = socio.plan or db.query(models.Plan).filter(models.Plan.activo == True).first()
@@ -847,6 +906,7 @@ def socio_credencial_view(socio_id: int, request: Request, db: Session = Depends
         "habilitado": habilitado,
         "cuota_al_dia": cuota_al_dia,
         "apto_al_dia": apto_al_dia,
+        "permiso_especial": permiso_especial,
         "qr_image": f"data:image/png;base64,{qr_b64}",
         "init_point_mp": init_point_mp,
         "ultima_factura": ultima_factura
@@ -936,15 +996,20 @@ def validar_molinete(token: str = Form(...), db: Session = Depends(get_db)):
         db.commit()
         return JSONResponse({"abrir": False, "socio": f"{socio.nombre} {socio.apellido}", "motivo": "Bloqueado por Administración", "color": "red"})
 
+    if socio.habilitacion_manual_hasta and socio.habilitacion_manual_hasta >= hoy:
+        db.add(models.RegistroAcceso(socio_id=socio.id, resultado="PERMITIDO", motivo="PERMISO_ESPECIAL"))
+        db.commit()
+        return JSONResponse({"abrir": True, "socio": f"{socio.nombre} {socio.apellido}", "motivo": "Acceso Permitido (Permiso Especial)", "color": "green"})
+
     if socio.estado_cuota != "ACTIVO" or (socio.fecha_vencimiento_cuota and socio.fecha_vencimiento_cuota < hoy):
         db.add(models.RegistroAcceso(socio_id=socio.id, resultado="DENEGADO", motivo="CUOTA_VENCIDA"))
         db.commit()
-        return JSONResponse({"abrir": False, "socio": f"{socio.nombre} {socio.apellido}", "motivo": "Cuota Vencida", "color": "red"})
+        return JSONResponse({"abrir": False, "socio": f"{socio.nombre} {socio.apellido}", "motivo": "Falta Regularizar Cuota", "color": "red"})
 
-    if socio.apto_medico_vencimiento and socio.apto_medico_vencimiento < hoy:
+    if not socio.apto_medico_vencimiento or socio.apto_medico_vencimiento < hoy:
         db.add(models.RegistroAcceso(socio_id=socio.id, resultado="DENEGADO", motivo="APTO_MEDICO_VENCIDO"))
         db.commit()
-        return JSONResponse({"abrir": False, "socio": f"{socio.nombre} {socio.apellido}", "motivo": "Apto Médico Vencido", "color": "yellow"})
+        return JSONResponse({"abrir": False, "socio": f"{socio.nombre} {socio.apellido}", "motivo": "Falta Regularizar Apto Médico", "color": "yellow"})
 
     db.add(models.RegistroAcceso(socio_id=socio.id, resultado="PERMITIDO", motivo="OK"))
     db.commit()

@@ -8,7 +8,6 @@
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex items-center justify-center p-4">
     <div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl">
-        <!-- Logo de GymPro -->
         <div class="text-center mb-6">
             <div class="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 font-black text-xl mb-3">
                 GP
@@ -17,7 +16,6 @@
             <p class="text-xs text-slate-400">Portal de Gestión y Acceso de Socios</p>
         </div>
 
-        <!-- Selector de Modo de Acceso (Pestañas) -->
         <div class="grid grid-cols-2 gap-2 bg-slate-950 p-1.5 rounded-2xl border border-slate-800 mb-6">
             <button id="tab-socio" onclick="mostrarPestana('socio')" class="py-2 rounded-xl text-xs font-bold transition bg-emerald-500 text-white shadow-md">
                 👤 Soy Socio
@@ -27,7 +25,7 @@
             </button>
         </div>
 
-        <!-- FORMULARIO 1: SOCIOS (DNI Y MAIL) -->
+        <!-- FORMULARIO SOCIOS -->
         <div id="form-socio" class="space-y-4">
             <div class="text-left mb-2">
                 <h2 class="text-sm font-bold text-white">Credencial Digital del Socio</h2>
@@ -55,7 +53,7 @@
             </form>
         </div>
 
-        <!-- FORMULARIO 2: ADMINISTRACIÓN (USUARIO Y CONTRASEÑA) -->
+        <!-- FORMULARIO ADMINISTRACIÓN -->
         <div id="form-admin" class="space-y-4 hidden">
             <div class="text-left mb-2">
                 <h2 class="text-sm font-bold text-white">Ingreso de Personal</h2>
@@ -104,7 +102,6 @@
             }
         }
 
-        // Si hubo error de admin al recargar, mostrar pestaña admin directamente
         {% if error_admin %}
             mostrarPestana('admin');
         {% endif %}

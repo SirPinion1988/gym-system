@@ -11,24 +11,17 @@ from reportlab.lib.units import inch
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
-# Datos comerciales y fiscales configurables por variables de entorno
-RAZON_SOCIAL = os.getenv("EMPRESA_RAZON_SOCIAL", "GIMNASIO FITNESS CLUB")
+RAZON_SOCIAL = os.getenv("EMPRESA_RAZON_SOCIAL", "GYMPRO FITNESS CLUB")
 CUIT_EMISOR = os.getenv("EMPRESA_CUIT", "30-71234567-9")
 DOMICILIO_COMERCIAL = os.getenv("EMPRESA_DOMICILIO", "Av. Principal 1234, CABA")
 CONDICION_IVA = os.getenv("EMPRESA_CONDICION_IVA", "Monotributista")
 
-# Parámetros SMTP para el envío de mails
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
 SMTP_USER = os.getenv("SMTP_USER", "")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
 
 def emitir_factura_arca(socio_nombre: str, socio_dni: str, monto: float, concepto: str):
-    """
-    Simula la llamada al Web Service de Factura Electrónica ARCA (ex AFIP)
-    WSFE v1 y devuelve los datos fiscales autorizados.
-    En producción real se conecta con tu certificado o API puente.
-    """
     numero_comp = int(datetime.utcnow().timestamp()) % 1000000
     cae_simulado = f"742{datetime.utcnow().strftime('%Y%m%d')}{numero_comp:04d}"
     vto_cae = date.today() + timedelta(days=10)
@@ -43,40 +36,14 @@ def emitir_factura_arca(socio_nombre: str, socio_dni: str, monto: float, concept
     }
 
 def generar_pdf_factura(socio_nombre: str, socio_dni: str, socio_email: str, factura_data: dict, concepto: str) -> bytes:
-    """
-    Compila en memoria el PDF de la factura electrónica con formato oficial ARCA.
-    """
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
     elements = []
     styles = getSampleStyleSheet()
 
-    # Estilos
-    titulo_style = ParagraphStyle(
-        'TituloFactura',
-        parent=styles['Heading1'],
-        fontSize=16,
-        leading=20,
-        textColor=colors.HexColor("#0f172a"),
-        alignment=1
-    )
-    normal_style = ParagraphStyle(
-        'TextoNormal',
-        parent=styles['Normal'],
-        fontSize=9,
-        leading=12,
-        textColor=colors.HexColor("#334155")
-    )
-    bold_style = ParagraphStyle(
-        'TextoBold',
-        parent=styles['Normal'],
-        fontSize=9,
-        leading=12,
-        fontName="Helvetica-Bold",
-        textColor=colors.HexColor("#0f172a")
-    )
+    normal_style = ParagraphStyle('TextoNormal', parent=styles['Normal'], fontSize=9, leading=12, textColor=colors.HexColor("#334155"))
+    bold_style = ParagraphStyle('TextoBold', parent=styles['Normal'], fontSize=9, leading=12, fontName="Helvetica-Bold", textColor=colors.HexColor("#0f172a"))
 
-    # 1. Encabezado Oficial ARCA
     tipo_comp = factura_data.get("tipo_comprobante", "C")
     pt_vta = factura_data.get("punto_venta", 1)
     num_comp = factura_data.get("numero_comprobante", 1)
@@ -103,7 +70,6 @@ def generar_pdf_factura(socio_nombre: str, socio_dni: str, socio_email: str, fac
     elements.append(t_header)
     elements.append(Spacer(1, 15))
 
-    # 2. Datos del Socio / Cliente
     cliente_data = [
         [Paragraph(f"<b>Socio / Cliente:</b> {socio_nombre}", normal_style), Paragraph(f"<b>DNI / Doc:</b> {socio_dni}", normal_style)],
         [Paragraph(f"<b>Email:</b> {socio_email}", normal_style), Paragraph("<b>Condición IVA:</b> Consumidor Final", normal_style)]
@@ -117,7 +83,6 @@ def generar_pdf_factura(socio_nombre: str, socio_dni: str, socio_email: str, fac
     elements.append(t_cliente)
     elements.append(Spacer(1, 15))
 
-    # 3. Detalle del Cobro
     items_data = [
         [Paragraph("<b>Descripción del Servicio / Concepto</b>", bold_style), Paragraph("<b>Período</b>", bold_style), Paragraph("<b>Subtotal</b>", bold_style)],
         [Paragraph(concepto, normal_style), Paragraph("30 días de acceso", normal_style), Paragraph(f"${factura_data['monto']:.2f}", normal_style)],
@@ -134,10 +99,9 @@ def generar_pdf_factura(socio_nombre: str, socio_dni: str, socio_email: str, fac
     elements.append(t_items)
     elements.append(Spacer(1, 20))
 
-    # 4. Pie con CAE oficial de ARCA
     cae_data = [
         [Paragraph(f"<b>CAE N°:</b> {cae}<br/><b>Fecha Vto. CAE:</b> {cae_vto_str}", bold_style),
-         Paragraph("Comprobante Autorizado por <b>ARCA (Agencia de Recaudación y Control Aduanero)</b><br/>El pase al gimnasio se renueva automáticamente en el molinete.", normal_style)]
+         Paragraph("Comprobante Autorizado por <b>ARCA (Agencia de Recaudación y Control Aduanero)</b><br/>El acceso en el molinete se actualiza de forma automática.", normal_style)]
     ]
     t_cae = Table(cae_data, colWidths=[2.5*inch, 4.1*inch])
     t_cae.setStyle(TableStyle([
@@ -153,33 +117,28 @@ def generar_pdf_factura(socio_nombre: str, socio_dni: str, socio_email: str, fac
     return buffer.getvalue()
 
 def enviar_correo_factura(destinatario: str, nombre_socio: str, pdf_bytes: bytes, nro_factura: str):
-    """
-    Despacha el correo electrónico con el PDF adjunto. Si las credenciales SMTP no están
-    configuradas en variables de entorno, deja el log de prueba sin interrumpir la aplicación.
-    """
     if not SMTP_USER or not SMTP_PASSWORD:
-        print(f"[MAIL MOCK] SMTP no configurado. Factura {nro_factura} lista para enviarse a {destinatario}.")
+        print(f"[MAIL LOG] SMTP no configurado. Factura {nro_factura} lista para {destinatario}.")
         return False
 
     try:
         msg = MIMEMultipart()
         msg['From'] = f"{RAZON_SOCIAL} <{SMTP_USER}>"
         msg['To'] = destinatario
-        msg['Subject'] = f"Comprobante de Pago y Factura Electrónica N° {nro_factura}"
+        msg['Subject'] = f"Factura Electrónica ARCA N° {nro_factura} - {RAZON_SOCIAL}"
 
         cuerpo_html = f"""
         <html>
         <body style="font-family: Arial, sans-serif; color: #1e293b; line-height: 1.5;">
             <div style="max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px;">
-                <h2 style="color: #059669; margin-top: 0;">¡Pago Recibido y Acceso Habilitado!</h2>
+                <h2 style="color: #059669; margin-top: 0;">¡Pago Confirmado y Acceso Habilitado!</h2>
                 <p>Hola <b>{nombre_socio}</b>,</p>
-                <p>Te confirmamos que registramos correctamente tu pago. Tu acceso al gimnasio por el molinete ha sido renovado por 30 días.</p>
-                <p>Adjuntamos a este correo tu <b>Factura Electrónica oficial de ARCA</b> correspondiente al período abonado.</p>
+                <p>Registramos con éxito tu pago. Tu acceso al molinete se encuentra renovado.</p>
+                <p>Te adjuntamos el comprobante oficial de Factura Electrónica de ARCA.</p>
                 <br/>
                 <hr style="border: 0; border-top: 1px solid #e2e8f0;" />
-                <p style="font-size: 12px; color: #64748b;">
-                    {RAZON_SOCIAL} - {DOMICILIO_COMERCIAL}<br/>
-                    Sistema de Gestión y Control de Accesos
+                <p style="font-size: 11px; color: #64748b;">
+                    {RAZON_SOCIAL} - {DOMICILIO_COMERCIAL}
                 </p>
             </div>
         </body>
@@ -196,8 +155,7 @@ def enviar_correo_factura(destinatario: str, nombre_socio: str, pdf_bytes: bytes
         server.login(SMTP_USER, SMTP_PASSWORD)
         server.send_message(msg)
         server.quit()
-        print(f"[MAIL OK] Factura {nro_factura} enviada a {destinatario}.")
         return True
     except Exception as e:
-        print(f"[MAIL ERROR] Error al enviar correo: {e}")
+        print(f"[MAIL ERROR] {e}")
         return False

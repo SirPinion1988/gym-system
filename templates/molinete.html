@@ -3,66 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Molinete | Simulador de Control de Acceso</title>
+    <title>Simulador de Molinete | GymPro</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
-    <!-- Navbar -->
-    <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between">
-        <div class="flex items-center space-x-6">
-            <span class="text-xl font-bold tracking-tight text-emerald-400">GymPro</span>
-            <nav class="hidden md:flex space-x-4 text-sm font-medium">
-                <a href="/dashboard" class="text-slate-400 hover:text-white transition">Dashboard</a>
-                <a href="/socios" class="text-slate-400 hover:text-white transition">Socios</a>
-                <a href="/molinete" class="text-emerald-400 border-b-2 border-emerald-500 pb-1">Simulador Molinete</a>
-            </nav>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col items-center justify-center p-6">
+    <div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl text-center">
+        <!-- Indicador de Semáforo -->
+        <div id="luz-estado" class="w-24 h-24 rounded-full mx-auto mb-6 bg-slate-800 border-4 border-slate-700 flex items-center justify-center transition-all duration-300 shadow-xl">
+            <span id="icono-estado" class="text-3xl">🔒</span>
         </div>
-        <a href="/logout" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg text-rose-400 transition">Cerrar Sesión</a>
-    </header>
 
-    <main class="flex-1 p-6 max-w-4xl mx-auto w-full flex flex-col items-center justify-center">
-        <div class="w-full bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl text-center">
-            <div class="w-16 h-16 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center mx-auto mb-4 text-3xl">
-                🔄
+        <h1 class="text-2xl font-black text-white mb-1">Molinete de Acceso</h1>
+        <p id="texto-estado" class="text-xs text-slate-400 mb-6">Listo para leer código QR o token de acceso.</p>
+
+        <!-- Formulario de Token QR -->
+        <form id="form-molinete" onsubmit="validarAcceso(event)" class="space-y-4">
+            <div>
+                <input type="text" id="input-token" required placeholder="Escanear o ingresar token QR..." class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm font-mono text-center text-white focus:outline-none focus:border-emerald-500">
             </div>
-            <h1 class="text-2xl font-black text-white mb-2">Simulador de Molinete y Control de Acceso</h1>
-            <p class="text-sm text-slate-400 mb-8 max-w-md mx-auto">
-                Ingresa o escanea el token QR de un socio para emular la orden electrónica que recibe el molinete físico.
-            </p>
+            <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 rounded-xl text-sm transition shadow-lg shadow-emerald-500/20">
+                Validar Paso
+            </button>
+        </form>
 
-            <!-- Semáforo visual del molinete -->
-            <div id="display-estado" class="w-full max-w-md mx-auto p-6 rounded-2xl bg-slate-950 border-2 border-slate-800 mb-6 transition-all duration-300">
-                <div id="semaforo-icon" class="text-5xl mb-2">🔒</div>
-                <div id="semaforo-titulo" class="text-lg font-black text-slate-300 uppercase tracking-wide">Molinete Bloqueado</div>
-                <div id="semaforo-detalle" class="text-xs text-slate-500 mt-1">Esperando lectura de código QR...</div>
-            </div>
-
-            <!-- Formulario de ingreso de Token -->
-            <form id="form-validar" class="max-w-md mx-auto flex gap-2">
-                <input type="text" id="token-input" placeholder="Pega el token aquí (Ej: GYM-42123456-a1b2c3d4)" required autofocus
-                       class="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 font-mono">
-                <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 font-bold px-6 py-3 rounded-xl text-white text-sm transition">
-                    Escanear
-                </button>
-            </form>
+        <div class="mt-6 pt-4 border-t border-slate-800 flex justify-between text-xs text-slate-400">
+            <a href="/dashboard" class="hover:text-white transition">&larr; Volver al Panel</a>
+            <span class="font-mono text-slate-500">Hardware Sim: ONLINE</span>
         </div>
-    </main>
+    </div>
 
     <script>
-        const form = document.getElementById('form-validar');
-        const tokenInput = document.getElementById('token-input');
-        const display = document.getElementById('display-estado');
-        const icon = document.getElementById('semaforo-icon');
-        const titulo = document.getElementById('semaforo-titulo');
-        const detalle = document.getElementById('semaforo-detalle');
-
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const token = tokenInput.value.trim();
+        async function validarAcceso(event) {
+            event.preventDefault();
+            const input = document.getElementById('input-token');
+            const token = input.value.trim();
             if (!token) return;
 
-            titulo.innerText = "Consultando base de datos...";
-            detalle.innerText = "Verificando cuota, apto médico y estado...";
+            const luz = document.getElementById('luz-estado');
+            const icono = document.getElementById('icono-estado');
+            const texto = document.getElementById('texto-estado');
 
             try {
                 const formData = new FormData();
@@ -75,39 +54,34 @@
                 const data = await res.json();
 
                 if (data.abrir) {
-                    // Acceso Permitido (VERDE)
-                    display.className = "w-full max-w-md mx-auto p-6 rounded-2xl bg-emerald-950/40 border-2 border-emerald-500 mb-6";
-                    icon.innerText = "🔓";
-                    titulo.className = "text-xl font-black text-emerald-400 uppercase tracking-wide";
-                    titulo.innerText = "ACCESO HABILITADO";
-                    detalle.className = "text-sm font-semibold text-emerald-200 mt-1";
-                    detalle.innerText = `${data.socio} • Pase liberado`;
+                    luz.className = "w-24 h-24 rounded-full mx-auto mb-6 bg-emerald-500 border-4 border-emerald-300 flex items-center justify-center transition-all duration-300 shadow-2xl shadow-emerald-500/50";
+                    icono.innerText = "🔓";
+                    texto.innerHTML = `<b class="text-emerald-400 text-sm font-bold">${data.socio}</b><br/><span class="text-emerald-300 font-semibold">${data.motivo}</span>`;
                 } else {
-                    // Acceso Denegado (ROJO / AMARILLO)
-                    display.className = "w-full max-w-md mx-auto p-6 rounded-2xl bg-rose-950/40 border-2 border-rose-500 mb-6";
-                    icon.innerText = "🚫";
-                    titulo.className = "text-xl font-black text-rose-400 uppercase tracking-wide";
-                    titulo.innerText = "ACCESO DENEGADO";
-                    detalle.className = "text-sm font-semibold text-rose-300 mt-1";
-                    detalle.innerText = `${data.socio ? data.socio + ' - ' : ''}${data.motivo}`;
+                    if (data.color === 'yellow') {
+                        luz.className = "w-24 h-24 rounded-full mx-auto mb-6 bg-amber-500 border-4 border-amber-300 flex items-center justify-center transition-all duration-300 shadow-2xl shadow-amber-500/50";
+                        icono.innerText = "⚠️";
+                        texto.innerHTML = `<b class="text-amber-400 text-sm font-bold">${data.socio || ''}</b><br/><span class="text-amber-300 font-semibold">${data.motivo}</span>`;
+                    } else {
+                        luz.className = "w-24 h-24 rounded-full mx-auto mb-6 bg-rose-600 border-4 border-rose-400 flex items-center justify-center transition-all duration-300 shadow-2xl shadow-rose-600/50";
+                        icono.innerText = "⛔";
+                        texto.innerHTML = `<b class="text-rose-400 text-sm font-bold">${data.socio || ''}</b><br/><span class="text-rose-300 font-semibold">${data.motivo}</span>`;
+                    }
                 }
 
-                // Reset automático a los 5 segundos (como un molinete real)
+                input.value = '';
+                input.focus();
+
                 setTimeout(() => {
-                    display.className = "w-full max-w-md mx-auto p-6 rounded-2xl bg-slate-950 border-2 border-slate-800 mb-6 transition-all duration-300";
-                    icon.innerText = "🔒";
-                    titulo.className = "text-lg font-black text-slate-300 uppercase tracking-wide";
-                    titulo.innerText = "Molinete Bloqueado";
-                    detalle.className = "text-xs text-slate-500 mt-1";
-                    detalle.innerText = "Esperando lectura de código QR...";
-                    tokenInput.value = "";
-                    tokenInput.focus();
-                }, 5000);
+                    luz.className = "w-24 h-24 rounded-full mx-auto mb-6 bg-slate-800 border-4 border-slate-700 flex items-center justify-center transition-all duration-300 shadow-xl";
+                    icono.innerText = "🔒";
+                    texto.innerText = "Listo para leer código QR o token de acceso.";
+                }, 4000);
 
             } catch (err) {
-                alert("Error de conexión al validar el molinete");
+                alert("Error al conectar con la central de validación.");
             }
-        });
+        }
     </script>
 </body>
 </html>

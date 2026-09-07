@@ -7,7 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
-    <!-- Navbar Superior Completa -->
+    <!-- Navbar -->
     <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between sticky top-0 z-40">
         <div class="flex items-center space-x-6">
             <div class="flex items-center space-x-2">
@@ -37,7 +37,6 @@
         </div>
     </header>
 
-    <!-- Menú Responsive para pantallas chicas -->
     <nav class="lg:hidden bg-slate-900 border-b border-slate-800 px-4 py-2.5 flex overflow-x-auto space-x-4 text-xs font-medium">
         <a href="/dashboard" class="text-emerald-400 font-bold whitespace-nowrap">Dashboard</a>
         <a href="/socios" class="text-slate-400 whitespace-nowrap">Socios</a>
@@ -51,9 +50,7 @@
         <a href="/molinete" class="text-slate-400 whitespace-nowrap">Molinete</a>
     </nav>
 
-    <!-- Contenido Principal -->
     <main class="flex-1 p-6 max-w-7xl mx-auto w-full space-y-6">
-        <!-- Acciones Rápidas -->
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
                 <h1 class="text-2xl font-black text-white">Panel de Control General</h1>
@@ -72,7 +69,6 @@
             </div>
         </div>
 
-        <!-- Tarjetas de Métricas -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
                 <div class="flex justify-between items-center text-slate-400 mb-2">
@@ -111,7 +107,6 @@
             </div>
         </div>
 
-        <!-- Módulos de Acceso Directo -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <a href="/balance" class="bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-emerald-500/50 rounded-2xl p-4 transition group">
                 <div class="flex items-center space-x-3">
@@ -150,7 +145,6 @@
             </a>
         </div>
 
-        <!-- Tabla de Accesos por Molinete -->
         <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
             <div class="flex justify-between items-center mb-4">
                 <div>
@@ -200,11 +194,13 @@
                             <td class="p-3.5 text-xs text-slate-300">
                                 {% if a.motivo == 'OK' or a.motivo == 'ACCESO_OK' %}
                                     <span class="text-emerald-400 font-medium">Cuota y apto al día</span>
+                                {% elif a.motivo == 'PERMISO_ESPECIAL' %}
+                                    <span class="text-indigo-400 font-medium">Permiso especial administrativo</span>
                                 {% elif a.motivo == 'CUOTA_VENCIDA' %}
-                                    <span class="text-rose-400 font-medium">Cuota impaga / vencida</span>
+                                    <span class="text-rose-400 font-medium">Falta regularizar cuota</span>
                                 {% elif a.motivo == 'APTO_MEDICO_VENCIDO' %}
-                                    <span class="text-amber-400 font-medium">Apto médico vencido</span>
-                                {% elif a.motivo == 'BLOQUEADO_MANUAL' or a.motivo == 'BLOQUEO_ADMINISTRATIVO' %}
+                                    <span class="text-amber-400 font-medium">Falta regularizar apto médico</span>
+                                {% elif a.motivo == 'BLOQUEADO_MANUAL' %}
                                     <span class="text-rose-400 font-medium">Bloqueado por administración</span>
                                 {% else %}
                                     <span>{{ a.motivo }}</span>

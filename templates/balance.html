@@ -23,6 +23,9 @@
                 <a href="/caja-pagos" class="text-slate-400 hover:text-white transition">Caja / Cuotas</a>
                 <a href="/kiosco" class="text-slate-400 hover:text-white transition">Kiosco</a>
                 <a href="/balance" class="text-emerald-400 border-b-2 border-emerald-500 pb-1">Balance & Reportes</a>
+                {% if user.rol == 'ADMIN' %}
+                <a href="/usuarios" class="text-slate-400 hover:text-white transition">Usuarios</a>
+                {% endif %}
                 <a href="/molinete" class="text-slate-400 hover:text-white transition">Molinete</a>
             </nav>
         </div>
@@ -30,7 +33,6 @@
     </header>
 
     <main class="flex-1 p-6 max-w-7xl mx-auto w-full space-y-6">
-        <!-- Encabezado con Descargas CSV/Excel -->
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
                 <h1 class="text-2xl font-black text-white">Balance Financiero y Contable</h1>
@@ -49,9 +51,7 @@
             </div>
         </div>
 
-        <!-- Tarjetas del Estado Financiero -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <!-- Ingresos Hoy -->
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
                 <span class="text-xs text-slate-400 uppercase font-bold tracking-wider">Ingresos Hoy</span>
                 <div class="text-2xl font-black text-white mt-1">${{ "%.2f"|format(total_ingresos_hoy) }}</div>
@@ -61,21 +61,18 @@
                 </div>
             </div>
 
-            <!-- Ingresos Brutos del Mes -->
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
                 <span class="text-xs text-slate-400 uppercase font-bold tracking-wider">Ingresos Mes (Bruto)</span>
                 <div class="text-2xl font-black text-emerald-400 mt-1">${{ "%.2f"|format(total_ingresos_mes) }}</div>
-                <div class="text-[11px] text-slate-500 mt-2">Facturado del 1° al día de hoy</div>
+                <div class="text-[11px] text-slate-500 mt-2">Facturado del 1° a la fecha</div>
             </div>
 
-            <!-- Egresos: Sueldos de Profesores -->
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
                 <span class="text-xs text-rose-400 uppercase font-bold tracking-wider">Sueldos Profes (Mes)</span>
                 <div class="text-2xl font-black text-rose-400 mt-1">-${{ "%.2f"|format(egreso_sueldos_mensual) }}</div>
                 <div class="text-[11px] text-slate-500 mt-2">Masa salarial activa</div>
             </div>
 
-            <!-- Ganancia Neta Real -->
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
                 <span class="text-xs text-indigo-400 uppercase font-bold tracking-wider">Ganancia Neta (Mes)</span>
                 <div class="text-2xl font-black {% if ganancia_neta_mes >= 0 %}text-indigo-400{% else %}text-rose-500{% endif %} mt-1">
@@ -87,9 +84,7 @@
             </div>
         </div>
 
-        <!-- SECCIÓN DE VENCIMIENTOS -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <!-- Vencen en los próximos 7 días -->
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-lg font-bold text-amber-400 flex items-center gap-2">
@@ -126,7 +121,6 @@
                 </div>
             </div>
 
-            <!-- Socios ya Vencidos (Inhabilitados) -->
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-lg font-bold text-rose-400 flex items-center gap-2">
