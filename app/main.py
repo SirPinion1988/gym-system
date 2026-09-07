@@ -4,6 +4,7 @@ import qrcode
 import io
 import csv
 import base64
+import urllib.parse
 from pathlib import Path
 from datetime import date, datetime, timedelta
 from typing import Optional
@@ -487,6 +488,68 @@ def ver_qr_socio(socio_id: int, user: Optional[models.UsuarioSistema] = Depends(
     })
 
 
+# --- ENDPOINT PARA GENERAR LINK DE MERCADO PAGO Y WHATSAPP ---
+
+@app.get("/api/socio/link-pago/{socio_id}")
+def api_generar_link_pago(socio_id: int, user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user), db: Session = Depends(get_db)):
+    if not user:
+        raise HTTPException(status_code=401)
+    socio = db.query(models.Socio).get(socio_id)
+    if not socio:
+        raise HTTPException(status_code=404, detail="Socio no encontrado")
+
+    plan = socio.plan or db.query(models.Plan).filter(models.Plan.activo == True).first()
+    if not plan:
+        raise HTTPException(status_code=400, detail="No hay plan configurado")
+
+    link_pago = f"{APP_PUBLIC_URL}/socio/credencial/{socio.id}"
+    try:
+        preference_data = {
+            "items": [
+                {
+                    "title": f"Abono {plan.nombre} - Socio {socio.nombre} {socio.apellido}",
+                    "quantity": 1,
+                    "unit_price": float(plan.precio),
+                    "currency_id": "ARS"
+                }
+            ],
+            "payer": {
+                "email": socio.email,
+                "name": socio.nombre,
+                "surname": socio.apellido,
+                "identification": {"type": "DNI", "number": socio.dni}
+            },
+            "external_reference": f"SOCIO-{socio.id}-{int(datetime.utcnow().timestamp())}",
+            "notification_url": f"{APP_PUBLIC_URL}/api/pagos/webhook",
+            "back_urls": {
+                "success": f"{APP_PUBLIC_URL}/socio/credencial/{socio.id}?pago_exitoso=1",
+                "failure": f"{APP_PUBLIC_URL}/socio/credencial/{socio.id}?error_pago=1",
+                "pending": f"{APP_PUBLIC_URL}/socio/credencial/{socio.id}?pago_pendiente=1"
+            },
+            "auto_return": "approved"
+        }
+        pref_res = mp_sdk.preference().create(preference_data)
+        init_point = pref_res["response"].get("init_point")
+        if init_point:
+            link_pago = init_point
+    except Exception as e:
+        print(f"Error generando MP link: {e}")
+
+    # Limpiar celular y armar enlace a WhatsApp
+    cel_clean = "".join([c for c in socio.celular if c.isdigit()])
+    mensaje = f"Hola {socio.nombre}! Te enviamos el link para abonar tu cuota de {plan.nombre} (${plan.precio:.2f}): {link_pago}"
+    msg_encoded = urllib.parse.quote(mensaje)
+    whatsapp_url = f"https://wa.me/{cel_clean}?text={msg_encoded}" if cel_clean else f"https://wa.me/?text={msg_encoded}"
+
+    return JSONResponse({
+        "socio": f"{socio.nombre} {socio.apellido}",
+        "link_pago": link_pago,
+        "whatsapp_url": whatsapp_url,
+        "monto": plan.precio,
+        "plan": plan.nombre
+    })
+
+
 # --- CLASES Y PROFESORES ---
 
 @app.get("/clases-profesores", response_class=HTMLResponse)
@@ -566,7 +629,7 @@ def crear_clase(
     return RedirectResponse(url="/clases-profesores", status_code=status.HTTP_302_FOUND)
 
 
-# --- MÓDULO CAJA Y CUOTAS (BLINDADO CON JOINEDLOAD Y PROTECCIÓN CONTRA ERRORES) ---
+# --- CAJA Y PLANES (CON EDICIÓN Y ELIMINACIÓN DE COBROS) ---
 
 @app.get("/caja-pagos", response_class=HTMLResponse)
 def pagos_view(request: Request, user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user), db: Session = Depends(get_db)):
@@ -575,20 +638,17 @@ def pagos_view(request: Request, user: Optional[models.UsuarioSistema] = Depends
     
     try:
         pagos = db.query(models.Pago).options(joinedload(models.Pago.socio)).order_by(models.Pago.id.desc()).limit(30).all() or []
-    except Exception as e:
-        print(f"Error cargando pagos: {e}")
+    except Exception:
         pagos = []
 
     try:
         socios = db.query(models.Socio).order_by(models.Socio.apellido.asc()).all() or []
-    except Exception as e:
-        print(f"Error cargando socios: {e}")
+    except Exception:
         socios = []
 
     try:
         planes = db.query(models.Plan).order_by(models.Plan.id.asc()).all() or []
-    except Exception as e:
-        print(f"Error cargando planes: {e}")
+    except Exception:
         planes = []
 
     return templates.TemplateResponse(request=request, name="caja_pagos.html", context={
@@ -639,6 +699,47 @@ def registrar_pago(
     return RedirectResponse(url="/caja-pagos", status_code=status.HTTP_302_FOUND)
 
 
+# NUEVO: Editar un cobro mal cargado
+@app.post("/pagos/editar/{pago_id}")
+def editar_pago(
+    pago_id: int,
+    monto: float = Form(...),
+    metodo_pago: str = Form(...),
+    concepto: str = Form(...),
+    user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    if not user:
+        raise HTTPException(status_code=401)
+    pago = db.query(models.Pago).get(pago_id)
+    if not pago:
+        raise HTTPException(status_code=404, detail="Cobro no encontrado")
+
+    pago.monto = monto
+    pago.metodo_pago = metodo_pago
+    pago.concepto = concepto.strip()
+    db.commit()
+    return RedirectResponse(url="/caja-pagos", status_code=status.HTTP_302_FOUND)
+
+
+# NUEVO: Eliminar / Anular un cobro erróneo
+@app.post("/pagos/eliminar/{pago_id}")
+def eliminar_pago(
+    pago_id: int,
+    user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    if not user:
+        raise HTTPException(status_code=401)
+    pago = db.query(models.Pago).get(pago_id)
+    if not pago:
+        raise HTTPException(status_code=404, detail="Cobro no encontrado")
+
+    db.delete(pago)
+    db.commit()
+    return RedirectResponse(url="/caja-pagos", status_code=status.HTTP_302_FOUND)
+
+
 @app.post("/planes/crear")
 def crear_plan(
     nombre: str = Form(...),
@@ -682,7 +783,7 @@ def editar_plan(
     return RedirectResponse(url="/caja-pagos", status_code=status.HTTP_302_FOUND)
 
 
-# --- MÓDULO KIOSCO (PÁGINA EXCLUSIVA) ---
+# --- KIOSCO ---
 
 @app.get("/kiosco", response_class=HTMLResponse)
 def kiosco_view(request: Request, user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user), db: Session = Depends(get_db)):
@@ -691,14 +792,12 @@ def kiosco_view(request: Request, user: Optional[models.UsuarioSistema] = Depend
     
     try:
         productos = db.query(models.Producto).filter(models.Producto.activo == True).order_by(models.Producto.nombre.asc()).all() or []
-    except Exception as e:
-        print(f"Error cargando productos: {e}")
+    except Exception:
         productos = []
 
     try:
         ventas = db.query(models.VentaProducto).options(joinedload(models.VentaProducto.producto)).order_by(models.VentaProducto.id.desc()).limit(20).all() or []
-    except Exception as e:
-        print(f"Error cargando ventas: {e}")
+    except Exception:
         ventas = []
 
     return templates.TemplateResponse(request=request, name="kiosco.html", context={
@@ -747,7 +846,7 @@ def vender_producto(
     return RedirectResponse(url="/kiosco", status_code=status.HTTP_302_FOUND)
 
 
-# --- BALANCE Y FINANZAS PROFESIONAL ---
+# --- BALANCE ---
 
 @app.get("/balance", response_class=HTMLResponse)
 def balance_view(request: Request, user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user), db: Session = Depends(get_db)):
