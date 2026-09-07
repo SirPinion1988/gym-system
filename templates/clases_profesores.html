@@ -26,7 +26,7 @@
                 <a href="/molinete" class="text-slate-400 hover:text-white transition">Molinete</a>
             </nav>
         </div>
-        <a href="/logout" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg text-rose-400 transition">Cerrar Sesión</a>
+        <a href="/logout" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg text-rose-400 transition font-semibold">Cerrar Sesión</a>
     </header>
 
     <main class="flex-1 p-6 max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -60,7 +60,7 @@
                             </td>
                             <td class="p-3 text-xs text-indigo-400">{{ p.especialidad or 'General' }}</td>
                             <td class="p-3 text-xs font-mono font-bold text-emerald-400">
-                                ${{ "%.2f"|format(p.sueldo or 0.0) }}
+                                ${{ "%.2f"|format(p.sueldo if p.sueldo is not none else 0.0) }}
                                 <span class="text-[10px] text-slate-400 font-sans block">({{ p.tipo_sueldo or 'MENSUAL' }})</span>
                             </td>
                             <td class="p-3 text-xs text-slate-400">{{ p.celular }}</td>
@@ -117,7 +117,7 @@
         </div>
     </main>
 
-    <!-- Modal Nuevo Profesor con Sueldo -->
+    <!-- Modal Nuevo Profesor -->
     <div id="modal-profe" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
         <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-md shadow-2xl">
             <h3 class="font-bold text-lg mb-4 text-white">Alta de Profesor</h3>
@@ -130,7 +130,7 @@
                     <input type="text" name="dni" placeholder="DNI" required class="bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-emerald-500">
                     <input type="text" name="celular" placeholder="Celular" required class="bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-emerald-500">
                 </div>
-                <input type="text" name="especialidad" placeholder="Especialidad (ej: Spinning, Crossfit, Musculación)" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-emerald-500">
+                <input type="text" name="especialidad" placeholder="Especialidad (ej: Spinning, Crossfit)" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-emerald-500">
                 
                 <div class="grid grid-cols-2 gap-3">
                     <div>
