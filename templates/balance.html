@@ -3,15 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Balance y Reportes | GymPro</title>
+    <title>Balance y Finanzas | GymPro</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
     <!-- Navbar -->
-    <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between">
+    <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between sticky top-0 z-40">
         <div class="flex items-center space-x-6">
-            <span class="text-xl font-bold tracking-tight text-emerald-400">GymPro</span>
-            <nav class="hidden md:flex space-x-4 text-sm font-medium">
+            <div class="flex items-center space-x-2">
+                <div class="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center font-black text-emerald-400 text-sm">
+                    GP
+                </div>
+                <span class="text-xl font-bold tracking-tight text-white">Gym<span class="text-emerald-400">Pro</span></span>
+            </div>
+            <nav class="hidden lg:flex space-x-4 text-sm font-medium">
                 <a href="/dashboard" class="text-slate-400 hover:text-white transition">Dashboard</a>
                 <a href="/socios" class="text-slate-400 hover:text-white transition">Socios</a>
                 <a href="/clases-profesores" class="text-slate-400 hover:text-white transition">Clases y Profes</a>
@@ -21,22 +26,22 @@
                 <a href="/molinete" class="text-slate-400 hover:text-white transition">Molinete</a>
             </nav>
         </div>
-        <a href="/logout" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg text-rose-400">Cerrar Sesión</a>
+        <a href="/logout" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg text-rose-400 transition font-semibold">Cerrar Sesión</a>
     </header>
 
     <main class="flex-1 p-6 max-w-7xl mx-auto w-full space-y-6">
-        <!-- Encabezado con Botones de Exportación CSV/Excel -->
+        <!-- Encabezado con Descargas CSV/Excel -->
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-                <h1 class="text-2xl font-black">Balance Contable y Auditoría</h1>
-                <p class="text-xs text-slate-400">Ingresos diarios, mensuales y control de vencimientos.</p>
+                <h1 class="text-2xl font-black text-white">Balance Financiero y Contable</h1>
+                <p class="text-xs text-slate-400">Control de ingresos brutos, egresos salariales y utilidad neta real.</p>
             </div>
             <div class="flex flex-wrap gap-2">
-                <a href="/exportar/pagos-csv" class="bg-emerald-600 hover:bg-emerald-500 px-3 py-2 rounded-xl text-xs font-bold text-white transition flex items-center gap-1.5">
-                    📥 Bajar Cobros (CSV)
+                <a href="/exportar/pagos-csv" class="bg-emerald-600 hover:bg-emerald-500 px-3 py-2 rounded-xl text-xs font-bold text-white transition flex items-center gap-1.5 shadow-lg shadow-emerald-600/20">
+                    📥 Cobros Cuotas (CSV)
                 </a>
-                <a href="/exportar/ventas-csv" class="bg-indigo-600 hover:bg-indigo-500 px-3 py-2 rounded-xl text-xs font-bold text-white transition flex items-center gap-1.5">
-                    📥 Bajar Kiosco (CSV)
+                <a href="/exportar/ventas-csv" class="bg-indigo-600 hover:bg-indigo-500 px-3 py-2 rounded-xl text-xs font-bold text-white transition flex items-center gap-1.5 shadow-lg shadow-indigo-600/20">
+                    📥 Ventas Kiosco (CSV)
                 </a>
                 <a href="/exportar/socios-csv" class="bg-slate-800 hover:bg-slate-700 px-3 py-2 rounded-xl text-xs font-bold text-white transition flex items-center gap-1.5">
                     📥 Padrón Socios (CSV)
@@ -44,30 +49,40 @@
             </div>
         </div>
 
-        <!-- Tarjetas de Balance -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
-                <span class="text-xs text-slate-400 uppercase font-bold">Facturación Hoy</span>
-                <div class="text-3xl font-black text-white mt-1">${{ "%.2f"|format(total_hoy) }}</div>
-                <div class="text-[11px] text-slate-400 mt-2 flex justify-between">
-                    <span>Cuotas: ${{ "%.2f"|format(cuotas_hoy) }}</span>
-                    <span>Kiosco: ${{ "%.2f"|format(kiosco_hoy) }}</span>
+        <!-- Tarjetas del Estado Financiero -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <!-- Ingresos Hoy -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
+                <span class="text-xs text-slate-400 uppercase font-bold tracking-wider">Ingresos Hoy</span>
+                <div class="text-2xl font-black text-white mt-1">${{ "%.2f"|format(total_ingresos_hoy) }}</div>
+                <div class="text-[11px] text-slate-400 mt-2 space-y-0.5">
+                    <div class="flex justify-between"><span>Cuotas:</span> <span class="text-emerald-400">${{ "%.2f"|format(cuotas_hoy) }}</span></div>
+                    <div class="flex justify-between"><span>Kiosco:</span> <span class="text-sky-400">${{ "%.2f"|format(kiosco_hoy) }}</span></div>
                 </div>
             </div>
 
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
-                <span class="text-xs text-slate-400 uppercase font-bold">Acumulado Mes Actual</span>
-                <div class="text-3xl font-black text-emerald-400 mt-1">${{ "%.2f"|format(total_mes) }}</div>
-                <div class="text-[11px] text-slate-400 mt-2 text-slate-500">
-                    Calculado del 1ro a la fecha
-                </div>
+            <!-- Ingresos Brutos del Mes -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
+                <span class="text-xs text-slate-400 uppercase font-bold tracking-wider">Ingresos Mes (Bruto)</span>
+                <div class="text-2xl font-black text-emerald-400 mt-1">${{ "%.2f"|format(total_ingresos_mes) }}</div>
+                <div class="text-[11px] text-slate-500 mt-2">Facturado del 1° al día de hoy</div>
             </div>
 
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
-                <span class="text-xs text-slate-400 uppercase font-bold">Total Facturado en el Año</span>
-                <div class="text-3xl font-black text-indigo-400 mt-1">${{ "%.2f"|format(total_anio) }}</div>
-                <div class="text-[11px] text-slate-400 mt-2 text-slate-500">
-                    Ejercicio Contable Activo
+            <!-- Egresos: Sueldos de Profesores -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
+                <span class="text-xs text-rose-400 uppercase font-bold tracking-wider">Sueldos Profes (Mes)</span>
+                <div class="text-2xl font-black text-rose-400 mt-1">-${{ "%.2f"|format(egreso_sueldos_mensual) }}</div>
+                <div class="text-[11px] text-slate-500 mt-2">Masa salarial activa</div>
+            </div>
+
+            <!-- Ganancia Neta Real -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
+                <span class="text-xs text-indigo-400 uppercase font-bold tracking-wider">Ganancia Neta (Mes)</span>
+                <div class="text-2xl font-black {% if ganancia_neta_mes >= 0 %}text-indigo-400{% else %}text-rose-500{% endif %} mt-1">
+                    ${{ "%.2f"|format(ganancia_neta_mes) }}
+                </div>
+                <div class="text-[11px] text-slate-400 mt-2">
+                    Anual Neta: <b class="text-white">${{ "%.2f"|format(ganancia_neta_anio) }}</b>
                 </div>
             </div>
         </div>
@@ -93,9 +108,9 @@
                         </thead>
                         <tbody class="divide-y divide-slate-800">
                             {% for s in proximos_vencer %}
-                            <tr class="hover:bg-slate-800/30">
+                            <tr class="hover:bg-slate-800/30 transition">
                                 <td class="p-3">
-                                    <div class="font-semibold">{{ s.nombre }} {{ s.apellido }}</div>
+                                    <div class="font-semibold text-white">{{ s.nombre }} {{ s.apellido }}</div>
                                     <div class="text-xs text-slate-500">{{ s.celular }}</div>
                                 </td>
                                 <td class="p-3 text-xs">{{ s.plan.nombre if s.plan else '-' }}</td>
@@ -130,9 +145,9 @@
                         </thead>
                         <tbody class="divide-y divide-slate-800">
                             {% for s in vencidos %}
-                            <tr class="hover:bg-slate-800/30">
+                            <tr class="hover:bg-slate-800/30 transition">
                                 <td class="p-3">
-                                    <div class="font-semibold">{{ s.nombre }} {{ s.apellido }}</div>
+                                    <div class="font-semibold text-white">{{ s.nombre }} {{ s.apellido }}</div>
                                     <div class="text-xs text-slate-500">{{ s.celular }}</div>
                                 </td>
                                 <td class="p-3 text-xs">{{ s.plan.nombre if s.plan else '-' }}</td>

@@ -3,91 +3,164 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Caja y Cuotas | GymPro</title>
+    <title>Caja y Planes | GymPro</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
     <!-- Navbar -->
-    <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between">
+    <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between sticky top-0 z-40">
         <div class="flex items-center space-x-6">
-            <span class="text-xl font-bold text-emerald-400">GymPro</span>
-            <nav class="hidden md:flex space-x-4 text-sm font-medium">
+            <div class="flex items-center space-x-2">
+                <div class="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center font-black text-emerald-400 text-sm">
+                    GP
+                </div>
+                <span class="text-xl font-bold tracking-tight text-white">Gym<span class="text-emerald-400">Pro</span></span>
+            </div>
+            <nav class="hidden lg:flex space-x-4 text-sm font-medium">
                 <a href="/dashboard" class="text-slate-400 hover:text-white transition">Dashboard</a>
                 <a href="/socios" class="text-slate-400 hover:text-white transition">Socios</a>
                 <a href="/clases-profesores" class="text-slate-400 hover:text-white transition">Clases y Profes</a>
                 <a href="/caja-pagos" class="text-emerald-400 border-b-2 border-emerald-500 pb-1">Caja / Cuotas</a>
                 <a href="/kiosco" class="text-slate-400 hover:text-white transition">Kiosco</a>
+                <a href="/balance" class="text-slate-400 hover:text-white transition">Balance & Reportes</a>
                 <a href="/molinete" class="text-slate-400 hover:text-white transition">Molinete</a>
             </nav>
         </div>
-        <a href="/logout" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg text-rose-400">Cerrar Sesión</a>
+        <a href="/logout" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg text-rose-400 transition font-semibold">Cerrar Sesión</a>
     </header>
 
     <main class="flex-1 p-6 max-w-7xl mx-auto w-full space-y-6">
-        <!-- Tarjetas de Acciones Rápidas -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Bloque Superior: Cobro de Cuota y Alta de Plan -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <!-- Registrar Pago de Cuota -->
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
-                <h2 class="text-lg font-bold text-emerald-400 mb-2">💵 Cobrar Cuota a Socio</h2>
-                <p class="text-xs text-slate-400 mb-4">Selecciona el socio y el plan. El sistema extenderá automáticamente 30 días de acceso en el molinete.</p>
-                <form action="/pagos/registrar" method="POST" class="space-y-3">
-                    <div>
-                        <label class="block text-xs text-slate-400 mb-1">Socio</label>
-                        <select name="socio_id" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm">
-                            <option value="">Seleccionar Socio...</option>
-                            {% for s in socios %}
-                            <option value="{{ s.id }}">{{ s.nombre }} {{ s.apellido }} (DNI: {{ s.dni }})</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="grid grid-cols-2 gap-3">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col justify-between">
+                <div>
+                    <h2 class="text-lg font-bold text-emerald-400 mb-1 flex items-center gap-2">
+                        <span>💵</span> Cobro de Cuota en Mostrador
+                    </h2>
+                    <p class="text-xs text-slate-400 mb-4">Emite comprobante y renueva el acceso en el molinete.</p>
+                    
+                    <form action="/pagos/registrar" method="POST" class="space-y-3">
                         <div>
-                            <label class="block text-xs text-slate-400 mb-1">Plan</label>
-                            <select name="plan_id" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm">
-                                {% for p in planes %}
-                                <option value="{{ p.id }}">{{ p.nombre }} - ${{ p.precio }}</option>
+                            <label class="block text-xs text-slate-400 mb-1">Socio</label>
+                            <select name="socio_id" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-emerald-500">
+                                <option value="">Seleccionar Socio...</option>
+                                {% for s in socios %}
+                                <option value="{{ s.id }}">{{ s.nombre }} {{ s.apellido }} (DNI: {{ s.dni }})</option>
                                 {% endfor %}
                             </select>
                         </div>
-                        <div>
-                            <label class="block text-xs text-slate-400 mb-1">Forma de Pago</label>
-                            <select name="metodo_pago" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm">
-                                <option value="EFECTIVO">Efectivo</option>
-                                <option value="MERCADOPAGO">Mercado Pago / QR</option>
-                                <option value="TRANSFERENCIA">Transferencia</option>
-                            </select>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs text-slate-400 mb-1">Plan a Cobrar</label>
+                                <select name="plan_id" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-emerald-500">
+                                    {% for p in planes %}
+                                        {% if p.activo %}
+                                        <option value="{{ p.id }}">{{ p.nombre }} - ${{ "%.2f"|format(p.precio) }}</option>
+                                        {% endif %}
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-slate-400 mb-1">Forma de Pago</label>
+                                <select name="metodo_pago" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-emerald-500">
+                                    <option value="EFECTIVO">Efectivo</option>
+                                    <option value="MERCADOPAGO">Mercado Pago / QR</option>
+                                    <option value="TRANSFERENCIA">Transferencia</option>
+                                </select>
+                            </div>
                         </div>
-                    </div>
-                    <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-600 py-2.5 rounded-lg font-bold text-white text-sm transition">
-                        Confirmar y Renovar Acceso
-                    </button>
-                </form>
+                        <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-600 py-3 rounded-xl font-bold text-white text-sm transition mt-2 shadow-lg shadow-emerald-500/20">
+                            Confirmar Cobro y Facturar
+                        </button>
+                    </form>
+                </div>
             </div>
 
             <!-- Nuevo Plan / Tarifa -->
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
-                <h2 class="text-lg font-bold text-indigo-400 mb-2">📋 Configurar Planes y Precios</h2>
-                <p class="text-xs text-slate-400 mb-4">Crea nuevas categorías de abonos para el gimnasio.</p>
-                <form action="/planes/crear" method="POST" class="space-y-3">
-                    <input type="text" name="nombre" placeholder="Nombre (ej: Pase Trimestral)" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm">
-                    <div class="grid grid-cols-2 gap-3">
-                        <input type="number" step="0.01" name="precio" placeholder="Precio ($)" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm">
-                        <input type="number" name="dias_duracion" placeholder="Días (ej: 30)" value="30" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm">
-                    </div>
-                    <input type="text" name="descripcion" placeholder="Descripción breve" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm">
-                    <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 py-2 rounded-lg font-bold text-white text-sm transition">
-                        Guardar Nuevo Plan
-                    </button>
-                </form>
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col justify-between">
+                <div>
+                    <h2 class="text-lg font-bold text-indigo-400 mb-1 flex items-center gap-2">
+                        <span>📋</span> Crear Nuevo Plan de Cuota
+                    </h2>
+                    <p class="text-xs text-slate-400 mb-4">Define nuevos abonos o promociones para los socios.</p>
+                    
+                    <form action="/planes/crear" method="POST" class="space-y-3">
+                        <input type="text" name="nombre" placeholder="Nombre del Plan (ej: Pase Trimestral)" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-indigo-500">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[11px] text-slate-400 mb-1">Precio ($)</label>
+                                <input type="number" step="0.01" name="precio" placeholder="0.00" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] text-slate-400 mb-1">Duración (Días)</label>
+                                <input type="number" name="dias_duracion" value="30" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-indigo-500">
+                            </div>
+                        </div>
+                        <input type="text" name="descripcion" placeholder="Descripción breve (opcional)" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-indigo-500">
+                        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 py-3 rounded-xl font-bold text-white text-sm transition mt-2 shadow-lg shadow-indigo-600/20">
+                            Guardar Nuevo Plan
+                        </button>
+                    </form>
+                </div>
             </div>
         </div>
 
-        <!-- Historial de Cobros -->
+        <!-- SECCIÓN: PLANES ACTIVOS Y EDICIÓN -->
         <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
-            <h3 class="font-bold text-base mb-4">Últimos Cobros Registrados</h3>
+            <div class="flex justify-between items-center mb-4">
+                <div>
+                    <h2 class="text-lg font-bold text-white">Catálogo de Planes y Aranceles Vigentes</h2>
+                    <p class="text-xs text-slate-400">Modifica precios, días de validez o pausa planes discontinuados.</p>
+                </div>
+            </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-sm">
-                    <thead class="bg-slate-950 text-slate-400 text-xs uppercase">
+                    <thead class="bg-slate-950/60 text-slate-400 text-xs uppercase border-b border-slate-800">
+                        <tr>
+                            <th class="p-3">Nombre del Plan</th>
+                            <th class="p-3">Precio Actual</th>
+                            <th class="p-3 text-center">Duración</th>
+                            <th class="p-3">Descripción</th>
+                            <th class="p-3 text-center">Estado</th>
+                            <th class="p-3 text-right">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800">
+                        {% for p in planes %}
+                        <tr class="hover:bg-slate-800/30 transition">
+                            <td class="p-3 font-bold text-white">{{ p.nombre }}</td>
+                            <td class="p-3 font-mono font-bold text-emerald-400 text-base">${{ "%.2f"|format(p.precio) }}</td>
+                            <td class="p-3 text-center text-xs font-semibold text-slate-300">{{ p.dias_duracion }} días</td>
+                            <td class="p-3 text-xs text-slate-400">{{ p.descripcion or '-' }}</td>
+                            <td class="p-3 text-center">
+                                {% if p.activo %}
+                                <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-950 text-emerald-400 border border-emerald-800">Activo</span>
+                                {% else %}
+                                <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-950 text-rose-400 border border-rose-800">Pausado</span>
+                                {% endif %}
+                            </td>
+                            <td class="p-3 text-right">
+                                <button onclick="abrirModalEditarPlan({{ p.id }}, '{{ p.nombre }}', {{ p.precio }}, {{ p.dias_duracion }}, '{{ p.descripcion or '' }}', {{ 'true' if p.activo else 'false' }})" 
+                                        class="bg-slate-800 hover:bg-slate-700 text-xs px-3 py-1.5 rounded-lg text-indigo-300 font-bold transition">
+                                    ✏️ Modificar
+                                </button>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="6" class="p-6 text-center text-slate-500 text-xs">No hay planes creados aún.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Historial de Pagos Recientes -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+            <h3 class="font-bold text-base text-white mb-4">Últimos Cobros Registrados</h3>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-slate-950/60 text-slate-400 text-xs uppercase border-b border-slate-800">
                         <tr>
                             <th class="p-3">Fecha y Hora</th>
                             <th class="p-3">Socio</th>
@@ -98,22 +171,77 @@
                     </thead>
                     <tbody class="divide-y divide-slate-800">
                         {% for p in pagos %}
-                        <tr class="hover:bg-slate-800/30">
+                        <tr class="hover:bg-slate-800/30 transition">
                             <td class="p-3 text-xs text-slate-400 font-mono">{{ p.fecha_pago.strftime('%d/%m/%Y %H:%M') }}</td>
                             <td class="p-3 font-semibold">{{ p.socio.nombre }} {{ p.socio.apellido }}</td>
-                            <td class="p-3 text-xs">{{ p.concepto }}</td>
+                            <td class="p-3 text-xs text-slate-300">{{ p.concepto }}</td>
                             <td class="p-3 text-xs">
-                                <span class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 font-semibold">{{ p.metodo_pago }}</span>
+                                <span class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 font-semibold text-slate-200">{{ p.metodo_pago }}</span>
                             </td>
-                            <td class="p-3 text-right font-bold text-emerald-400">${{ p.monto }}</td>
+                            <td class="p-3 text-right font-bold text-emerald-400">${{ "%.2f"|format(p.monto) }}</td>
                         </tr>
                         {% else %}
-                        <tr><td colspan="5" class="p-6 text-center text-slate-500 text-xs">No hay pagos registrados aún.</td></tr>
+                        <tr><td colspan="5" class="p-6 text-center text-slate-500 text-xs">No hay cobros registrados todavía.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
         </div>
     </main>
+
+    <!-- MODAL PARA EDITAR PLAN -->
+    <div id="modal-editar-plan" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-lg text-white">Modificar Plan de Cuota</h3>
+                <button onclick="cerrarModalEditarPlan()" class="text-slate-400 hover:text-white text-xl">&times;</button>
+            </div>
+            <form id="form-editar-plan" action="" method="POST" class="space-y-3">
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Nombre del Plan</label>
+                    <input type="text" id="edit-nombre" name="nombre" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-indigo-500">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Precio Actualizado ($)</label>
+                        <input type="number" step="0.01" id="edit-precio" name="precio" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Días de Acceso</label>
+                        <input type="number" id="edit-dias" name="dias_duracion" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-indigo-500">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Descripción</label>
+                    <input type="text" id="edit-descripcion" name="descripcion" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-indigo-500">
+                </div>
+                <div class="flex items-center gap-2 pt-2">
+                    <input type="checkbox" id="edit-activo" name="activo" class="w-4 h-4 rounded bg-slate-950 border-slate-700 text-indigo-600 focus:ring-0">
+                    <label for="edit-activo" class="text-xs text-slate-300 font-semibold cursor-pointer">Plan Activo (Disponible para cobro)</label>
+                </div>
+                <div class="flex justify-end gap-2 pt-3">
+                    <button type="button" onclick="cerrarModalEditarPlan()" class="px-4 py-2 bg-slate-800 rounded-lg text-xs font-semibold hover:bg-slate-700 transition">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-xs font-bold text-white transition">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function abrirModalEditarPlan(id, nombre, precio, dias, descripcion, activo) {
+            const form = document.getElementById('form-editar-plan');
+            form.action = '/planes/editar/' + id;
+            document.getElementById('edit-nombre').value = nombre;
+            document.getElementById('edit-precio').value = precio;
+            document.getElementById('edit-dias').value = dias;
+            document.getElementById('edit-descripcion').value = descripcion;
+            document.getElementById('edit-activo').checked = activo;
+            document.getElementById('modal-editar-plan').classList.remove('hidden');
+        }
+
+        function cerrarModalEditarPlan() {
+            document.getElementById('modal-editar-plan').classList.add('hidden');
+        }
+    </script>
 </body>
 </html>

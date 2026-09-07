@@ -333,7 +333,7 @@ def toggle_bloqueo_socio(socio_id: int, user: Optional[models.UsuarioSistema] = 
     return RedirectResponse(url="/socios", status_code=status.HTTP_302_FOUND)
 
 
-# --- MÓDULO PROFESORES Y CLASES (CON SUELDOS) ---
+# --- MÓDULO PROFESORES Y CLASES ---
 
 @app.get("/clases-profesores", response_class=HTMLResponse)
 def clases_profesores_view(request: Request, user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user), db: Session = Depends(get_db)):
@@ -410,7 +410,7 @@ def pagos_view(request: Request, user: Optional[models.UsuarioSistema] = Depends
         return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
     pagos = db.query(models.Pago).order_by(models.Pago.id.desc()).limit(25).all()
     socios = db.query(models.Socio).all()
-    planes = db.query(models.Plan).all()
+    planes = db.query(models.Plan).order_by(models.Plan.id.asc()).all()
     return templates.TemplateResponse(request=request, name="caja_pagos.html", context={
         "user": user,
         "pagos": pagos,
@@ -470,8 +470,34 @@ def crear_plan(
 ):
     if not user:
         return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
-    p = models.Plan(nombre=nombre.strip(), precio=precio, dias_duracion=dias_duracion, descripcion=descripcion.strip())
+    p = models.Plan(nombre=nombre.strip(), precio=precio, dias_duracion=dias_duracion, descripcion=descripcion.strip(), activo=True)
     db.add(p)
+    db.commit()
+    return RedirectResponse(url="/caja-pagos", status_code=status.HTTP_302_FOUND)
+
+
+@app.post("/planes/editar/{plan_id}")
+def editar_plan(
+    plan_id: int,
+    nombre: str = Form(...),
+    precio: float = Form(...),
+    dias_duracion: int = Form(...),
+    descripcion: str = Form(""),
+    activo: Optional[str] = Form(None),
+    user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    if not user:
+        raise HTTPException(status_code=401)
+    plan = db.query(models.Plan).get(plan_id)
+    if not plan:
+        raise HTTPException(status_code=404)
+
+    plan.nombre = nombre.strip()
+    plan.precio = precio
+    plan.dias_duracion = dias_duracion
+    plan.descripcion = descripcion.strip()
+    plan.activo = True if activo == "on" else False
     db.commit()
     return RedirectResponse(url="/caja-pagos", status_code=status.HTTP_302_FOUND)
 
@@ -530,7 +556,7 @@ def vender_producto(
     return RedirectResponse(url="/kiosco", status_code=status.HTTP_302_FOUND)
 
 
-# --- BALANCES Y REPORTES ---
+# --- BALANCE Y FINANZAS PROFESIONAL ---
 
 @app.get("/balance", response_class=HTMLResponse)
 def balance_view(request: Request, user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user), db: Session = Depends(get_db)):
@@ -541,18 +567,30 @@ def balance_view(request: Request, user: Optional[models.UsuarioSistema] = Depen
     primer_dia_mes = date(hoy.year, hoy.month, 1)
     primer_dia_anio = date(hoy.year, 1, 1)
 
+    # 1. Ingresos por Cuotas
     cuotas_hoy = db.query(func.coalesce(func.sum(models.Pago.monto), 0.0)).filter(func.date(models.Pago.fecha_pago) == hoy).scalar()
     cuotas_mes = db.query(func.coalesce(func.sum(models.Pago.monto), 0.0)).filter(models.Pago.fecha_pago >= primer_dia_mes).scalar()
     cuotas_anio = db.query(func.coalesce(func.sum(models.Pago.monto), 0.0)).filter(models.Pago.fecha_pago >= primer_dia_anio).scalar()
 
+    # 2. Ingresos por Kiosco
     kiosco_hoy = db.query(func.coalesce(func.sum(models.VentaProducto.total), 0.0)).filter(func.date(models.VentaProducto.fecha) == hoy).scalar()
     kiosco_mes = db.query(func.coalesce(func.sum(models.VentaProducto.total), 0.0)).filter(models.VentaProducto.fecha >= primer_dia_mes).scalar()
     kiosco_anio = db.query(func.coalesce(func.sum(models.VentaProducto.total), 0.0)).filter(models.VentaProducto.fecha >= primer_dia_anio).scalar()
 
-    total_hoy = cuotas_hoy + kiosco_hoy
-    total_mes = cuotas_mes + kiosco_mes
-    total_anio = cuotas_anio + kiosco_anio
+    total_ingresos_hoy = cuotas_hoy + kiosco_hoy
+    total_ingresos_mes = cuotas_mes + kiosco_mes
+    total_ingresos_anio = cuotas_anio + kiosco_anio
 
+    # 3. Egresos Operativos (Sueldos)
+    egreso_sueldos_mensual = db.query(func.coalesce(func.sum(models.Profesor.sueldo), 0.0)).filter(models.Profesor.activo == True).scalar()
+    meses_transcurridos = hoy.month
+    egreso_sueldos_anual = egreso_sueldos_mensual * meses_transcurridos
+
+    # 4. Ganancia Neta Real
+    ganancia_neta_mes = total_ingresos_mes - egreso_sueldos_mensual
+    ganancia_neta_anio = total_ingresos_anio - egreso_sueldos_anual
+
+    # 5. Vencimientos
     limite_proximo = hoy + timedelta(days=7)
     vencidos = db.query(models.Socio).filter(models.Socio.fecha_vencimiento_cuota < hoy).order_by(models.Socio.fecha_vencimiento_cuota.asc()).all()
     proximos_vencer = db.query(models.Socio).filter(
@@ -567,9 +605,12 @@ def balance_view(request: Request, user: Optional[models.UsuarioSistema] = Depen
         "user": user,
         "cuotas_hoy": cuotas_hoy,
         "kiosco_hoy": kiosco_hoy,
-        "total_hoy": total_hoy,
-        "total_mes": total_mes,
-        "total_anio": total_anio,
+        "total_ingresos_hoy": total_ingresos_hoy,
+        "total_ingresos_mes": total_ingresos_mes,
+        "total_ingresos_anio": total_ingresos_anio,
+        "egreso_sueldos_mensual": egreso_sueldos_mensual,
+        "ganancia_neta_mes": ganancia_neta_mes,
+        "ganancia_neta_anio": ganancia_neta_anio,
         "vencidos": vencidos,
         "proximos_vencer": proximos_vencer,
         "ultimos_pagos_cuotas": ultimos_pagos_cuotas,
