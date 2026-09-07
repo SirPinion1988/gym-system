@@ -9,7 +9,7 @@
 <body class="bg-slate-950 text-slate-100 min-h-screen p-4 flex flex-col items-center justify-center">
 
     <div class="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl relative overflow-hidden space-y-4">
-        <!-- Encabezado con Nombre Configurable y Logo -->
+        <!-- Encabezado con Nombre y Logo -->
         <div class="flex justify-between items-center">
             <div class="flex items-center space-x-3">
                 {% if socio.foto_base64 %}
@@ -27,99 +27,59 @@
             </div>
             <div>
                 <img src="/static/logo.png" onerror="this.style.display='none'; document.getElementById('cred-logo-fallback').style.display='inline-flex';" class="h-9 max-w-[70px] object-contain" alt="Logo">
-                <div id="cred-logo-fallback" class="hidden w-9 h-9 rounded-full bg-emerald-500/20 border border-emerald-500/40 items-center justify-center font-black text-emerald-400 text-xs">
-                    GP
-                </div>
+                <div id="cred-logo-fallback" class="hidden w-9 h-9 rounded-full bg-emerald-500/20 border border-emerald-500/40 items-center justify-center font-black text-emerald-400 text-xs">GP</div>
             </div>
         </div>
 
-        <!-- Selector de Sección: Credencial / QR vs Rutina -->
-        <div class="grid grid-cols-2 gap-2 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
-            <button id="btn-tab-acceso" onclick="cambiarSeccion('acceso')" class="py-2 rounded-xl text-xs font-bold transition bg-emerald-500 text-white shadow-md">
-                📱 Mi Acceso
-            </button>
-            <button id="btn-tab-rutina" onclick="cambiarSeccion('rutina')" class="py-2 rounded-xl text-xs font-bold transition text-slate-400 hover:text-white">
-                🏋️‍♂️ Mi Rutina
-            </button>
+        <!-- Selector de 3 Pestañas: Acceso, Rutina y Evolución -->
+        <div class="grid grid-cols-3 gap-1.5 bg-slate-950 p-1.5 rounded-2xl border border-slate-800 text-center text-xs font-bold">
+            <button id="btn-tab-acceso" onclick="cambiarSeccion('acceso')" class="py-2 rounded-xl transition bg-emerald-500 text-white shadow-md">Acceso</button>
+            <button id="btn-tab-rutina" onclick="cambiarSeccion('rutina')" class="py-2 rounded-xl transition text-slate-400 hover:text-white">Rutina</button>
+            <button id="btn-tab-evolucion" onclick="cambiarSeccion('evolucion')" class="py-2 rounded-xl transition text-slate-400 hover:text-white">Evolución</button>
         </div>
 
         <!-- SECCIÓN 1: ACCESO Y QR -->
         <div id="seccion-acceso" class="space-y-4">
-            <!-- Estado de Acceso -->
             {% if habilitado %}
-                <div class="bg-emerald-950/70 border border-emerald-500/40 text-emerald-300 text-xs font-black px-3 py-2.5 rounded-xl text-center flex items-center justify-center gap-2 shadow-lg">
-                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> PUEDE PASAR AL GIMNASIO
+                <div class="bg-emerald-950/70 border border-emerald-500/40 text-emerald-300 text-xs font-black px-3 py-2 rounded-xl text-center flex items-center justify-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> PUEDE PASAR
                 </div>
             {% else %}
-                <div class="bg-rose-950/70 border border-rose-500/40 text-rose-300 text-xs font-black px-3 py-2.5 rounded-xl text-center flex items-center justify-center gap-2 shadow-lg">
+                <div class="bg-rose-950/70 border border-rose-500/40 text-rose-300 text-xs font-black px-3 py-2 rounded-xl text-center flex items-center justify-center gap-2">
                     <span>🔒</span> FALTA REGULARIZAR INGRESO
                 </div>
             {% endif %}
 
-            <!-- Código QR -->
             <div class="bg-white p-4 rounded-2xl mx-auto text-center shadow-inner">
-                <img src="{{ qr_image }}" alt="Código QR Socio" class="w-48 h-48 mx-auto">
+                <img src="{{ qr_image }}" alt="Código QR Socio" class="w-44 h-44 mx-auto">
             </div>
 
-            <!-- Detalles Socio -->
-            <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-2">
-                <div class="flex justify-between items-center text-xs">
-                    <span class="text-slate-400">Plan contratado:</span>
-                    <span class="font-bold text-white">{{ plan.nombre if plan else 'Pase General' }}</span>
-                </div>
-                <div class="flex justify-between items-center text-xs">
-                    <span class="text-slate-400">Cuota mensual:</span>
-                    <span class="font-bold text-emerald-400 text-sm">${{ "%.2f"|format(plan.precio) if plan else '0.00' }}</span>
-                </div>
-                <div class="flex justify-between items-center text-xs">
-                    <span class="text-slate-400">Vencimiento Cuota:</span>
-                    <span class="font-mono {% if cuota_al_dia %}text-slate-200{% else %}text-rose-400 font-bold{% endif %}">
-                        {{ socio.fecha_vencimiento_cuota.strftime('%d/%m/%Y') if socio.fecha_vencimiento_cuota else 'Pendiente' }}
-                    </span>
-                </div>
-                <div class="flex justify-between items-center text-xs">
-                    <span class="text-slate-400">Apto Médico (1 Año):</span>
-                    <span class="{% if apto_al_dia %}text-emerald-400{% else %}text-amber-400 font-bold{% endif %}">
-                        {{ 'Vigente hasta ' + socio.apto_medico_vencimiento.strftime('%d/%m/%Y') if apto_al_dia else 'Presentar Apto' }}
-                    </span>
-                </div>
-                {% if permiso_especial %}
-                <div class="flex justify-between items-center text-xs pt-1 border-t border-slate-800/80">
-                    <span class="text-indigo-400">Permiso Especial:</span>
-                    <span class="font-bold text-indigo-300">Habilitado hasta {{ socio.habilitacion_manual_hasta.strftime('%d/%m/%Y') }}</span>
-                </div>
-                {% endif %}
+            <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-2 text-xs">
+                <div class="flex justify-between"><span class="text-slate-400">Plan:</span><span class="font-bold text-white">{{ plan.nombre if plan else 'Sin Plan' }}</span></div>
+                <div class="flex justify-between"><span class="text-slate-400">Vencimiento:</span><span class="font-mono {% if cuota_al_dia %}text-slate-200{% else %}text-rose-400 font-bold{% endif %}">{{ socio.fecha_vencimiento_cuota.strftime('%d/%m/%Y') if socio.fecha_vencimiento_cuota else 'Pendiente' }}</span></div>
+                <div class="flex justify-between"><span class="text-slate-400">Apto Médico:</span><span class="{% if apto_al_dia %}text-emerald-400{% else %}text-amber-400 font-bold{% endif %}">{{ 'Vigente hasta ' + socio.apto_medico_vencimiento.strftime('%d/%m/%Y') if apto_al_dia else 'Presentar Apto' }}</span></div>
             </div>
 
-            <!-- Opciones de Pago Online -->
-            <div class="space-y-2.5">
-                {% if not cuota_al_dia and init_point_mp %}
-                    <a href="{{ init_point_mp }}" class="w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 rounded-xl text-sm transition flex items-center justify-center gap-2 shadow-lg shadow-sky-500/20">
-                        <span>💳</span> Pagar Cuota con Mercado Pago (${{ "%.2f"|format(plan.precio) }})
+            {% if not cuota_al_dia and init_point_mp %}
+                <a href="{{ init_point_mp }}" class="w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 rounded-xl text-xs transition flex items-center justify-center gap-2 shadow-lg shadow-sky-500/20">
+                    <span>💳</span> Pagar Cuota con Mercado Pago (${{ "%.2f"|format(plan.precio) }})
+                </a>
+            {% endif %}
+
+            {% if facturas %}
+                <div class="pt-2 border-t border-slate-800 space-y-1 max-h-32 overflow-y-auto">
+                    <span class="text-[10px] font-bold text-slate-400 block mb-1">Mis Comprobantes ARCA:</span>
+                    {% for f in facturas %}
+                    <a href="/factura/descargar/{{ f.id }}" class="w-full bg-slate-800/80 hover:bg-slate-800 text-slate-300 px-3 py-1.5 rounded-xl text-[11px] flex justify-between items-center border border-slate-700/60">
+                        <span>Comp. {{ "%04d"|format(f.punto_venta) }}-{{ "%08d"|format(f.numero_comprobante) }}</span>
+                        <span class="text-emerald-400 font-mono font-bold">${{ "%.2f"|format(f.monto_total) }}</span>
                     </a>
-                    <p class="text-[10px] text-center text-slate-500">
-                        Tu acceso se renueva automáticamente al acreditarse el pago.
-                    </p>
-                {% endif %}
-
-                <!-- Historial Comprobantes ARCA -->
-                {% if facturas %}
-                    <div class="pt-2 border-t border-slate-800">
-                        <span class="text-[11px] font-bold text-slate-400 block mb-2">Mis Facturas y Comprobantes ARCA:</span>
-                        <div class="space-y-1.5 max-h-36 overflow-y-auto">
-                            {% for f in facturas %}
-                            <a href="/factura/descargar/{{ f.id }}" class="w-full bg-slate-800/80 hover:bg-slate-800 text-slate-300 px-3 py-2 rounded-xl text-xs transition flex justify-between items-center border border-slate-700/60">
-                                <span>📄 Comp. {{ "%04d"|format(f.punto_venta) }}-{{ "%08d"|format(f.numero_comprobante) }}</span>
-                                <span class="text-emerald-400 font-mono font-bold">${{ "%.2f"|format(f.monto_total) }}</span>
-                            </a>
-                            {% endfor %}
-                        </div>
-                    </div>
-                {% endif %}
-            </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
         </div>
 
-        <!-- SECCIÓN 2: RUTINA Y ENTRENAMIENTO -->
+        <!-- SECCIÓN 2: RUTINA (GRATUITA Y TILDABLE) -->
         <div id="seccion-rutina" class="space-y-4 hidden">
             {% if rutina %}
                 <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4">
@@ -128,35 +88,24 @@
                             <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-400">{{ rutina.objetivo or 'Plan de Trabajo' }}</span>
                             <h2 class="text-base font-black text-white">{{ rutina.nombre_rutina }}</h2>
                         </div>
-                        <button onclick="reiniciarRutina({{ rutina.id }})" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded-lg border border-slate-700" title="Reiniciar todos los tildes">
-                            🔄 Reiniciar
-                        </button>
+                        <button onclick="reiniciarRutina({{ rutina.id }})" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded-lg border border-slate-700">🔄 Reiniciar</button>
                     </div>
-
-                    <!-- Barra de Progreso en Vivo -->
-                    <div class="space-y-1 mt-3">
-                        <div class="flex justify-between text-[11px]">
-                            <span class="text-slate-400">Progreso del Entrenamiento:</span>
-                            <span id="progreso-texto" class="font-bold text-emerald-400">{{ porcentaje_rutina }}%</span>
-                        </div>
-                        <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
-                            <div id="progreso-barra" class="bg-emerald-500 h-2 rounded-full transition-all duration-300" style="width: {{ porcentaje_rutina }}%"></div>
-                        </div>
+                    <div class="space-y-1 mt-2">
+                        <div class="flex justify-between text-[11px]"><span class="text-slate-400">Progreso:</span><span id="progreso-texto" class="font-bold text-emerald-400">{{ porcentaje_rutina }}%</span></div>
+                        <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden"><div id="progreso-barra" class="bg-emerald-500 h-2 rounded-full transition-all duration-300" style="width: {{ porcentaje_rutina }}%"></div></div>
                     </div>
                 </div>
 
-                <!-- Lista de Ejercicios con Checkbox Interactivo -->
-                <div class="space-y-2.5 max-h-96 overflow-y-auto pr-1">
+                <div class="space-y-2 max-h-96 overflow-y-auto pr-1">
                     {% for ej in rutina.ejercicios %}
                     <div id="card-ej-{{ ej.id }}" class="p-3 rounded-2xl border transition flex items-start justify-between gap-3 {% if ej.completado %}bg-emerald-950/20 border-emerald-800/60 opacity-80{% else %}bg-slate-950 border-slate-800{% endif %}">
                         <div class="flex-1">
-                            <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-400 block mb-0.5">{{ ej.dia_grupo }}</span>
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-400 block">{{ ej.dia_grupo }}</span>
                             <h4 id="nombre-ej-{{ ej.id }}" class="text-sm font-bold {% if ej.completado %}line-through text-slate-400{% else %}text-white{% endif %}">{{ ej.ejercicio }}</h4>
-                            <div class="text-xs text-slate-400 mt-1 flex flex-wrap gap-x-3 gap-y-1 font-mono">
-                                <span><b>Series:</b> {{ ej.series }}</span>
-                                <span><b>Reps:</b> {{ ej.repeticiones }}</span>
-                                {% if ej.peso_sugerido %}<span><b>Carga:</b> {{ ej.peso_sugerido }}</span>{% endif %}
-                                <span><b>Desc:</b> {{ ej.descanso }}</span>
+                            <div class="text-[11px] text-slate-400 mt-1 flex flex-wrap gap-x-2 font-mono">
+                                <span>{{ ej.series }}x{{ ej.repeticiones }}</span>
+                                {% if ej.peso_sugerido %}<span>• {{ ej.peso_sugerido }}</span>{% endif %}
+                                <span>• Desc: {{ ej.descanso }}</span>
                             </div>
                         </div>
                         <button onclick="toggleEjercicio({{ ej.id }})" class="mt-1 w-7 h-7 rounded-xl flex items-center justify-center border transition {% if ej.completado %}bg-emerald-500 border-emerald-400 text-white{% else %}bg-slate-900 border-slate-700 text-transparent hover:border-emerald-500{% endif %}">
@@ -168,14 +117,68 @@
             {% else %}
                 <div class="bg-slate-950 border border-slate-800 rounded-2xl p-8 text-center space-y-2">
                     <span class="text-3xl">📋</span>
-                    <h3 class="font-bold text-white text-sm">Aún no tienes una rutina asignada</h3>
-                    <p class="text-xs text-slate-400">Pídele a tu profesor o al personal en recepción que cargue tu plan de entrenamiento.</p>
+                    <h3 class="font-bold text-white text-sm">Sin rutina asignada</h3>
+                    <p class="text-xs text-slate-400">Pídele a tu profesor o en recepción que cargue tu plan de entrenamiento gratuito.</p>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- SECCIÓN 3: EVOLUCIÓN FÍSICA Y MEDIDAS -->
+        <div id="seccion-evolucion" class="space-y-4 hidden">
+            {% if socio.evoluciones %}
+                {% set ultima = socio.evoluciones[0] %}
+                <!-- Tarjeta Última Medición -->
+                <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-3">
+                    <div class="flex justify-between items-center">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Último Control: {{ ultima.fecha.strftime('%d/%m/%Y') }}</span>
+                        {% if ultima.imc %}
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-950 text-indigo-400 border border-indigo-800">IMC: {{ ultima.imc }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="grid grid-cols-3 gap-2 text-center">
+                        <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-800">
+                            <span class="text-[10px] text-slate-400 block">Peso</span>
+                            <span class="font-black text-white text-sm">{{ ultima.peso_kg or '-' }} kg</span>
+                        </div>
+                        <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-800">
+                            <span class="text-[10px] text-slate-400 block">% Grasa</span>
+                            <span class="font-black text-indigo-400 text-sm">{{ ultima.porcentaje_grasa ~ '%' if ultima.porcentaje_grasa else '-' }}</span>
+                        </div>
+                        <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-800">
+                            <span class="text-[10px] text-slate-400 block">Cintura</span>
+                            <span class="font-black text-emerald-400 text-sm">{{ ultima.cintura_cm ~ ' cm' if ultima.cintura_cm else '-' }}</span>
+                        </div>
+                    </div>
+                    {% if ultima.notas %}
+                    <p class="text-[11px] text-slate-400 italic bg-slate-900/60 p-2.5 rounded-xl border border-slate-800/80">
+                        "{{ ultima.notas }}"
+                    </p>
+                    {% endif %}
+                </div>
+
+                <!-- Historial Cronológico -->
+                <div class="space-y-2 max-h-60 overflow-y-auto pr-1">
+                    <span class="text-[11px] font-bold text-slate-400 block">Historial de Mediciones:</span>
+                    {% for ev in socio.evoluciones %}
+                    <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 text-xs flex justify-between items-center">
+                        <span class="font-mono text-slate-400">{{ ev.fecha.strftime('%d/%m/%Y') }}</span>
+                        <span class="font-bold text-white">{{ ev.peso_kg }} kg</span>
+                        <span class="text-slate-400">{{ ev.cintura_cm ~ ' cm cint.' if ev.cintura_cm else '' }}</span>
+                        {% if ev.imc %}<span class="text-indigo-400 font-bold">IMC {{ ev.imc }}</span>{% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="bg-slate-950 border border-slate-800 rounded-2xl p-8 text-center space-y-2">
+                    <span class="text-3xl">⚖️</span>
+                    <h3 class="font-bold text-white text-sm">Sin controles físicos registrados</h3>
+                    <p class="text-xs text-slate-400">Pide una medición en recepción o a tu entrenador para registrar peso, % de grasa y medidas en tu ficha.</p>
                 </div>
             {% endif %}
         </div>
 
         <div class="pt-3 border-t border-slate-800 text-center">
-            <a href="/" class="text-xs text-slate-400 hover:text-white">Cerrar credencial</a>
+            <a href="/" class="text-xs text-slate-400 hover:text-white">Cerrar sesión</a>
         </div>
     </div>
 
@@ -183,33 +186,37 @@
         function cambiarSeccion(tipo) {
             const secAcceso = document.getElementById('seccion-acceso');
             const secRutina = document.getElementById('seccion-rutina');
+            const secEvolucion = document.getElementById('seccion-evolucion');
             const btnAcceso = document.getElementById('btn-tab-acceso');
             const btnRutina = document.getElementById('btn-tab-rutina');
+            const btnEvolucion = document.getElementById('btn-tab-evolucion');
+
+            secAcceso.classList.add('hidden');
+            secRutina.classList.add('hidden');
+            secEvolucion.classList.add('hidden');
+
+            btnAcceso.className = "py-2 rounded-xl transition text-slate-400 hover:text-white";
+            btnRutina.className = "py-2 rounded-xl transition text-slate-400 hover:text-white";
+            btnEvolucion.className = "py-2 rounded-xl transition text-slate-400 hover:text-white";
 
             if (tipo === 'acceso') {
                 secAcceso.classList.remove('hidden');
-                secRutina.classList.add('hidden');
-                btnAcceso.className = "py-2 rounded-xl text-xs font-bold transition bg-emerald-500 text-white shadow-md";
-                btnRutina.className = "py-2 rounded-xl text-xs font-bold transition text-slate-400 hover:text-white";
-            } else {
+                btnAcceso.className = "py-2 rounded-xl transition bg-emerald-500 text-white shadow-md";
+            } else if (tipo === 'rutina') {
                 secRutina.classList.remove('hidden');
-                secAcceso.classList.add('hidden');
-                btnRutina.className = "py-2 rounded-xl text-xs font-bold transition bg-indigo-600 text-white shadow-md";
-                btnAcceso.className = "py-2 rounded-xl text-xs font-bold transition text-slate-400 hover:text-white";
+                btnRutina.className = "py-2 rounded-xl transition bg-indigo-600 text-white shadow-md";
+            } else {
+                secEvolucion.classList.remove('hidden');
+                btnEvolucion.className = "py-2 rounded-xl transition bg-emerald-600 text-white shadow-md";
             }
         }
 
         async function toggleEjercicio(ejercicioId) {
             try {
                 const res = await fetch('/api/socio/rutina/toggle-ejercicio/' + ejercicioId, { method: 'POST' });
-                if (!res.ok) throw new Error('Error al actualizar ejercicio');
                 const data = await res.json();
-
-                // Actualizar barra y texto
                 document.getElementById('progreso-texto').innerText = data.porcentaje + '%';
                 document.getElementById('progreso-barra').style.width = data.porcentaje + '%';
-
-                // Actualizar estilos del item
                 const card = document.getElementById('card-ej-' + ejercicioId);
                 const nombre = document.getElementById('nombre-ej-' + ejercicioId);
                 const btn = card.querySelector('button');
@@ -223,19 +230,13 @@
                     nombre.className = "text-sm font-bold text-white";
                     btn.className = "mt-1 w-7 h-7 rounded-xl flex items-center justify-center border transition bg-slate-900 border-slate-700 text-transparent hover:border-emerald-500";
                 }
-            } catch (err) {
-                alert('No se pudo marcar el ejercicio.');
-            }
+            } catch (err) { alert('Error al actualizar.'); }
         }
 
         async function reiniciarRutina(rutinaId) {
-            if (!confirm('¿Deseas reiniciar los tildes de toda la rutina para empezar de nuevo?')) return;
-            try {
-                const res = await fetch('/api/socio/rutina/reiniciar/' + rutinaId, { method: 'POST' });
-                if (res.ok) window.location.reload();
-            } catch (err) {
-                alert('Error al reiniciar la rutina.');
-            }
+            if (!confirm('¿Deseas reiniciar los tildes de toda la rutina?')) return;
+            const res = await fetch('/api/socio/rutina/reiniciar/' + rutinaId, { method: 'POST' });
+            if (res.ok) window.location.reload();
         }
     </script>
 </body>

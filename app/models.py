@@ -34,6 +34,17 @@ class Profesor(Base):
     activo = Column(Boolean, default=True)
     clases = relationship("Actividad", back_populates="profesor")
     rutinas_creadas = relationship("Rutina", back_populates="profesor")
+    pagos_recibidos = relationship("PagoProfesor", back_populates="profesor", cascade="all, delete-orphan")
+
+class PagoProfesor(Base):
+    __tablename__ = "pagos_profesores"
+    id = Column(Integer, primary_key=True, index=True)
+    profesor_id = Column(Integer, ForeignKey("profesores.id"), nullable=False)
+    monto = Column(Float, nullable=False)
+    concepto = Column(String(150), default="Liquidación de Sueldo / Honorarios")
+    metodo_pago = Column(String(50), default="EFECTIVO")
+    fecha_pago = Column(DateTime, default=datetime.utcnow)
+    profesor = relationship("Profesor", back_populates="pagos_recibidos")
 
 class Actividad(Base):
     __tablename__ = "actividades"
@@ -74,6 +85,30 @@ class Socio(Base):
     facturas = relationship("Factura", back_populates="socio", cascade="all, delete-orphan")
     accesos = relationship("RegistroAcceso", back_populates="socio", cascade="all, delete-orphan")
     rutinas = relationship("Rutina", back_populates="socio", cascade="all, delete-orphan")
+    evoluciones = relationship("EvolucionSocio", back_populates="socio", cascade="all, delete-orphan", order_by="desc(EvolucionSocio.fecha)")
+
+class EvolucionSocio(Base):
+    __tablename__ = "evolucion_socio"
+    id = Column(Integer, primary_key=True, index=True)
+    socio_id = Column(Integer, ForeignKey("socios.id"), nullable=False)
+    fecha = Column(Date, default=date.today)
+    peso_kg = Column(Float, nullable=True)
+    altura_cm = Column(Float, nullable=True)
+    porcentaje_grasa = Column(Float, nullable=True)
+    cintura_cm = Column(Float, nullable=True)
+    pecho_cm = Column(Float, nullable=True)
+    brazo_cm = Column(Float, nullable=True)
+    cadera_cm = Column(Float, nullable=True)
+    notas = Column(Text, nullable=True)
+
+    socio = relationship("Socio", back_populates="evoluciones")
+
+    @property
+    def imc(self):
+        if self.peso_kg and self.altura_cm and self.altura_cm > 0:
+            altura_m = self.altura_cm / 100.0
+            return round(self.peso_kg / (altura_m ** 2), 1)
+        return None
 
 class Rutina(Base):
     __tablename__ = "rutinas"
