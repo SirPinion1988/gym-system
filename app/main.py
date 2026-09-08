@@ -46,7 +46,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 GYM_NOMBRE = os.getenv("EMPRESA_RAZON_SOCIAL", "Barbie Gym & Fitness")
 MP_ACCESS_TOKEN = os.getenv("MP_ACCESS_TOKEN", "TEST-0000000000000000-000000-0000000000000000-0000000000000000-000000000")
 mp_sdk = mercadopago.SDK(MP_ACCESS_TOKEN)
-APP_PUBLIC_URL = os.getenv("APP_PUBLIC_URL", "https://gimnasio-app-0qhn.onrender.com")
+APP_PUBLIC_URL = os.getenv("APP_PUBLIC_URL", "https://dancebri.onrender.com")
 
 CURRENT_FILE = Path(__file__).resolve()
 APP_DIR = CURRENT_FILE.parent
@@ -115,13 +115,13 @@ def generar_qr_base64(texto: str) -> str:
 # ==========================================================
 @app.get("/health")
 def health_check():
-    """Ping de 2ms para que UptimeRobot mantenga el servidor despierto sin tocar SQL."""
+    """Ping de 2ms para que monitores externos mantengan el servidor despierto."""
     return {"status": "healthy", "app": GYM_NOMBRE, "timestamp": datetime.utcnow().isoformat()}
 
 
 @app.on_event("startup")
 def startup_db_init():
-    """Crea automáticamente las credenciales oficiales de Sirpinion y admin."""
+    """Crea o actualiza automáticamente a Sirpinion y admin."""
     from .database import SessionLocal
     db = SessionLocal()
     try:
@@ -164,7 +164,7 @@ def startup_db_init():
             admin.activo = True
             db.commit()
 
-        # 3. Membresías estándar
+        # 3. Membresías estándar si no hay ninguna
         if db.query(models.Plan).count() == 0:
             db.add_all([
                 models.Plan(nombre="Pase Libre Mensual", precio=25000.0, dias_duracion=30, descripcion="Acceso libre e ilimitado."),
@@ -214,7 +214,7 @@ def procesar_factura_y_mail(socio_id: int, pago_id: int, monto: float, concepto:
 
 
 # ==========================================================
-# RUTAS DE ACCESO (LOGIN) Y RECUPERACIÓN
+# RUTAS DE ACCESO (LOGIN COMPATIBLE CON CELULARES Y SAFARI)
 # ==========================================================
 @app.get("/", response_class=HTMLResponse)
 def index_hub(request: Request, user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user)):
@@ -229,7 +229,7 @@ def login_view(request: Request):
 
 
 @app.post("/login/admin")
-@limiter.limit("5/minute")
+@limiter.limit("15/minute")
 def login_admin_action(
     request: Request,
     response: Response,
@@ -237,33 +237,70 @@ def login_admin_action(
     password: str = Form(...),
     db: Session = Depends(get_db)
 ):
-    """Acceso para personal (Sirpinion, Administradores y Operadores)."""
-    user = db.query(models.UsuarioSistema).filter(models.UsuarioSistema.username == username.strip()).first()
-    if not user or not auth.verify_password(password, user.password_hash) or not user.activo:
-        return templates.TemplateResponse(request=request, name="login_hub.html", context={"error_admin": "Credenciales inválidas o cuenta inactiva.", "error_socio": None, "gym_nombre": GYM_NOMBRE})
+    """
+    Login personal (Sirpinion, Administradores y Operadores).
+    Usa .strip() para evitar que el teclado móvil meta espacios al final.
+    """
+    clean_user = username.strip()
+    clean_pass = password.strip()
+
+    # Busca sin importar mayúsculas o minúsculas que el celular suele poner automáticamente
+    user = db.query(models.UsuarioSistema).filter(
+        func.lower(models.UsuarioSistema.username) == func.lower(clean_user)
+    ).first()
+
+    if not user or not auth.verify_password(clean_pass, user.password_hash) or not user.activo:
+        return templates.TemplateResponse(
+            request=request, 
+            name="login_hub.html", 
+            context={"error_admin": "Credenciales inválidas o cuenta inactiva.", "error_socio": None, "gym_nombre": GYM_NOMBRE}
+        )
 
     token = auth.create_access_token(data={"sub": user.username, "rol": user.rol})
     resp = RedirectResponse(url="/dashboard", status_code=status.HTTP_302_FOUND)
-    resp.set_cookie(key="access_token", value=token, httponly=True, secure=True, samesite="lax")
+
+    # CONFIGURACIÓN ROBUSTA DE COOKIE PARA CELULARES (IOS SAFARI / ANDROID CHROME):
+    # samesite="lax", path="/" y max_age garantizan que no sea eliminada por el móvil.
+    es_https = request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
+    resp.set_cookie(
+        key="access_token",
+        value=token,
+        httponly=True,
+        secure=es_https,
+        samesite="lax",
+        max_age=60 * 60 * 24 * 7,  # 7 días de sesión activa
+        path="/"
+    )
     return resp
 
 
 @app.post("/login/socio")
-@limiter.limit("10/minute")
+@limiter.limit("20/minute")
 def login_socio_action(
     request: Request,
     dni: str = Form(...),
     email: str = Form(...),
     db: Session = Depends(get_db)
 ):
-    """Acceso del socio: Usuario = DNI | Contraseña = Correo Electrónico."""
+    """
+    Acceso del socio:
+    Usuario = DNI (sin puntos ni espacios)
+    Contraseña = Correo electrónico
+    """
+    clean_dni = "".join([c for c in dni if c.isdigit()])  # Extrae solo números por si ponen puntos
+    clean_email = email.strip().lower()
+
     socio = db.query(models.Socio).filter(
-        models.Socio.dni == dni.strip(),
-        models.Socio.email == email.strip().lower()
+        models.Socio.dni == clean_dni,
+        func.lower(models.Socio.email) == clean_email
     ).first()
 
     if not socio:
-        return templates.TemplateResponse(request=request, name="login_hub.html", context={"error_socio": "DNI o correo incorrectos.", "error_admin": None, "gym_nombre": GYM_NOMBRE})
+        return templates.TemplateResponse(
+            request=request, 
+            name="login_hub.html", 
+            context={"error_socio": "DNI o correo no encontrados. Verifica que coincidan con tu registro.", "error_admin": None, "gym_nombre": GYM_NOMBRE}
+        )
 
     return RedirectResponse(url=f"/socio/credencial/{socio.id}", status_code=status.HTTP_302_FOUND)
 
@@ -271,7 +308,7 @@ def login_socio_action(
 @app.get("/logout")
 def logout():
     resp = RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
-    resp.delete_cookie("access_token")
+    resp.delete_cookie("access_token", path="/")
     return resp
 
 
@@ -314,7 +351,7 @@ def crear_usuario_sistema(
     nuevo_usuario = models.UsuarioSistema(
         nombre=nombre.strip(),
         username=username.strip(),
-        password_hash=auth.hash_password(password),
+        password_hash=auth.hash_password(password.strip()),
         email=email.strip().lower(),
         rol=rol,
         activo=True
@@ -352,10 +389,10 @@ def cambiar_mi_password(
 ):
     if not user:
         raise HTTPException(status_code=401)
-    if not auth.verify_password(password_actual, user.password_hash):
+    if not auth.verify_password(password_actual.strip(), user.password_hash):
         return RedirectResponse(url="/dashboard?error=clave_actual_incorrecta", status_code=status.HTTP_302_FOUND)
 
-    user.password_hash = auth.hash_password(password_nueva)
+    user.password_hash = auth.hash_password(password_nueva.strip())
     db.commit()
     return RedirectResponse(url="/dashboard?exito=clave_modificada", status_code=status.HTTP_302_FOUND)
 
@@ -449,6 +486,7 @@ async def crear_socio(
     if not user:
         return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
 
+    clean_dni = "".join([c for c in dni if c.isdigit()])
     f_nac = datetime.strptime(fecha_nacimiento.strip(), "%Y-%m-%d").date()
     edad = calcular_edad(f_nac)
     
@@ -458,7 +496,7 @@ async def crear_socio(
         f_realizacion = datetime.strptime(apto_medico_realizacion.strip(), "%Y-%m-%d").date()
         f_vto_apto = sumar_un_anio(f_realizacion)
 
-    token_qr = f"GYM-{dni.strip()}-{uuid.uuid4().hex[:8]}"
+    token_qr = f"GYM-{clean_dni}-{uuid.uuid4().hex[:8]}"
 
     foto_b64 = None
     if foto and foto.filename:
@@ -471,7 +509,7 @@ async def crear_socio(
         apto_b64 = optimizar_imagen(contenido_apto, max_ancho=1000, calidad=70)
 
     nuevo_socio = models.Socio(
-        dni=dni.strip(),
+        dni=clean_dni,
         nombre=nombre.strip(),
         apellido=apellido.strip(),
         fecha_nacimiento=f_nac,
@@ -491,7 +529,6 @@ async def crear_socio(
     db.add(nuevo_socio)
     db.commit()
 
-    # Disparo de correo de bienvenida en segundo plano
     url_cred = f"{APP_PUBLIC_URL}/socio/credencial/{nuevo_socio.id}"
     background_tasks.add_task(
         billing.enviar_correo_bienvenida,
@@ -528,7 +565,7 @@ async def editar_socio(
 
     socio.nombre = nombre.strip()
     socio.apellido = apellido.strip()
-    socio.dni = dni.strip()
+    socio.dni = "".join([c for c in dni if c.isdigit()])
     
     f_nac = datetime.strptime(fecha_nacimiento.strip(), "%Y-%m-%d").date()
     socio.fecha_nacimiento = f_nac
@@ -558,6 +595,31 @@ async def editar_socio(
         socio.apto_medico_vencimiento = None
 
     db.commit()
+    return RedirectResponse(url="/socios", status_code=status.HTTP_302_FOUND)
+
+
+# ELIMINAR SOCIO DEFINITIVAMENTE (CASCADE EN TABLAS DEPENDIENTES)
+@app.post("/socios/eliminar/{socio_id}")
+def eliminar_socio_definitivo(
+    socio_id: int, 
+    user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user), 
+    db: Session = Depends(get_db)
+):
+    if not user or user.rol not in ["MASTER", "ADMIN"]:
+        raise HTTPException(status_code=403, detail="No tienes permisos para eliminar socios.")
+
+    socio = db.query(models.Socio).get(socio_id)
+    if not socio:
+        raise HTTPException(status_code=404, detail="Socio no encontrado.")
+
+    try:
+        db.delete(socio)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        print(f"[ERROR ELIMINAR SOCIO]: {e}")
+        raise HTTPException(status_code=500, detail="Error al eliminar socio.")
+
     return RedirectResponse(url="/socios", status_code=status.HTTP_302_FOUND)
 
 
@@ -976,6 +1038,23 @@ def liquidar_sueldo_profesor(
     return RedirectResponse(url="/clases-profesores", status_code=status.HTTP_302_FOUND)
 
 
+# ELIMINAR PROFESOR
+@app.post("/profesores/eliminar/{profesor_id}")
+def eliminar_profesor(
+    profesor_id: int, 
+    user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user), 
+    db: Session = Depends(get_db)
+):
+    if not user or user.rol not in ["MASTER", "ADMIN"]:
+        raise HTTPException(status_code=403)
+    
+    profe = db.query(models.Profesor).get(profesor_id)
+    if profe:
+        db.delete(profe)
+        db.commit()
+    return RedirectResponse(url="/clases-profesores", status_code=status.HTTP_302_FOUND)
+
+
 @app.post("/clases/crear")
 def crear_clase(
     nombre: str = Form(...),
@@ -992,6 +1071,23 @@ def crear_clase(
     clase = models.Actividad(nombre=nombre.strip(), dias=dias.strip(), horario=horario.strip(), cupo_maximo=cupo_maximo, profesor_id=pid)
     db.add(clase)
     db.commit()
+    return RedirectResponse(url="/clases-profesores", status_code=status.HTTP_302_FOUND)
+
+
+# ELIMINAR CLASE / ACTIVIDAD
+@app.post("/clases/eliminar/{actividad_id}")
+def eliminar_clase(
+    actividad_id: int, 
+    user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user), 
+    db: Session = Depends(get_db)
+):
+    if not user or user.rol not in ["MASTER", "ADMIN"]:
+        raise HTTPException(status_code=403)
+    
+    actividad = db.query(models.Actividad).get(actividad_id)
+    if actividad:
+        db.delete(actividad)
+        db.commit()
     return RedirectResponse(url="/clases-profesores", status_code=status.HTTP_302_FOUND)
 
 
@@ -1151,6 +1247,23 @@ def editar_plan(
     return RedirectResponse(url="/caja-pagos", status_code=status.HTTP_302_FOUND)
 
 
+# ELIMINAR PLAN DE MEMBRESÍA
+@app.post("/planes/eliminar/{plan_id}")
+def eliminar_plan(
+    plan_id: int, 
+    user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user), 
+    db: Session = Depends(get_db)
+):
+    if not user or user.rol not in ["MASTER", "ADMIN"]:
+        raise HTTPException(status_code=403)
+    
+    plan = db.query(models.Plan).get(plan_id)
+    if plan:
+        db.delete(plan)
+        db.commit()
+    return RedirectResponse(url="/caja-pagos", status_code=status.HTTP_302_FOUND)
+
+
 # ==========================================================
 # KIOSCO Y PUNTO DE VENTA
 # ==========================================================
@@ -1208,6 +1321,23 @@ def vender_producto(
     venta = models.VentaProducto(producto_id=prod.id, cantidad=cantidad, total=total, metodo_pago=metodo_pago)
     db.add(venta)
     db.commit()
+    return RedirectResponse(url="/kiosco", status_code=status.HTTP_302_FOUND)
+
+
+# ELIMINAR PRODUCTO DEL KIOSCO
+@app.post("/productos/eliminar/{producto_id}")
+def eliminar_producto(
+    producto_id: int, 
+    user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user), 
+    db: Session = Depends(get_db)
+):
+    if not user or user.rol not in ["MASTER", "ADMIN"]:
+        raise HTTPException(status_code=403)
+    
+    prod = db.query(models.Producto).get(producto_id)
+    if prod:
+        db.delete(prod)
+        db.commit()
     return RedirectResponse(url="/kiosco", status_code=status.HTTP_302_FOUND)
 
 
