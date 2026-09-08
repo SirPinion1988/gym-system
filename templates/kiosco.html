@@ -34,12 +34,14 @@
     </header>
 
     <main class="flex-1 p-6 max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- VENTA EN MOSTRADOR CON MERCADO PAGO INTEGRADO -->
+        <!-- ========================================================== -->
+        <!-- COLUMNA 1: VENTA DE MOSTRADOR + INGRESO DE PRODUCTOS       -->
+        <!-- ========================================================== -->
         <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col">
             <h2 class="text-lg font-bold text-emerald-400 mb-1 flex items-center gap-2">
                 <span>🛒</span> Venta en Mostrador
             </h2>
-            <p class="text-xs text-slate-400 mb-4">Cobra en efectivo o muestra QR de Mercado Pago en pantalla.</p>
+            <p class="text-xs text-slate-400 mb-4">Cobra en efectivo o muestra el QR de Mercado Pago en pantalla.</p>
 
             <form id="form-venta-kiosco" action="/productos/vender" method="POST" class="space-y-3">
                 <div>
@@ -73,6 +75,7 @@
                 </button>
             </form>
 
+            <!-- FORMULARIO DE ALTA DE PRODUCTOS EN STOCK -->
             <div class="mt-8 pt-6 border-t border-slate-800">
                 <h3 class="font-bold text-sm text-white mb-3">Ingresar Producto al Stock</h3>
                 <form action="/productos/crear" method="POST" class="space-y-2">
@@ -93,8 +96,11 @@
             </div>
         </div>
 
-        <!-- LISTADOS DE INVENTARIO Y VENTAS -->
+        <!-- ========================================================== -->
+        <!-- COLUMNAS 2 Y 3: TABLA DE INVENTARIO Y VENTAS RECIENTES     -->
+        <!-- ========================================================== -->
         <div class="lg:col-span-2 space-y-6">
+            <!-- Tabla de inventario -->
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
                 <h3 class="font-bold text-base text-white mb-3">Stock Actual</h3>
                 <div class="overflow-x-auto max-h-60 overflow-y-auto">
@@ -127,6 +133,7 @@
                 </div>
             </div>
 
+            <!-- Tabla de últimas ventas -->
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
                 <h3 class="font-bold text-base text-white mb-3">Últimas Ventas Realizadas</h3>
                 <div class="overflow-x-auto max-h-60 overflow-y-auto">
@@ -159,7 +166,7 @@
         </div>
     </main>
 
-    <!-- MODAL QR MERCADO PAGO -->
+    <!-- MODAL POPUP: CÓDIGO QR DE MERCADO PAGO EN PANTALLA -->
     <div id="modal-mp-kiosco" class="hidden fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 w-full max-w-sm rounded-3xl p-6 text-center shadow-2xl space-y-4">
             <div>
@@ -185,6 +192,7 @@
     </div>
 
     <script>
+        // Si elige MP_QR, solicita el QR dinámico por AJAX; si no, procesa la venta en efectivo directo
         async function procesarVenta() {
             const metodo = document.getElementById('kiosco-metodo').value;
             const productoId = document.getElementById('kiosco-producto-id').value;

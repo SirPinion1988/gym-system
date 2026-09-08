@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Evolución de {{ socio.nombre }} | {{ gym_nombre }}</title>
+    <title>Evolución Física de {{ socio.nombre }} | {{ gym_nombre }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
@@ -11,7 +11,9 @@
     <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between sticky top-0 z-40">
         <div class="flex items-center space-x-6">
             <div class="flex items-center space-x-2">
-                <div class="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center font-black text-emerald-400 text-sm">GP</div>
+                <div class="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center font-black text-emerald-400 text-sm">
+                    GP
+                </div>
                 <span class="text-xl font-bold tracking-tight text-white">{{ gym_nombre }}</span>
             </div>
             <nav class="hidden lg:flex space-x-4 text-sm font-medium">
@@ -22,78 +24,85 @@
                 <a href="/caja-pagos" class="text-slate-400 hover:text-white transition">Caja / Cuotas</a>
                 <a href="/kiosco" class="text-slate-400 hover:text-white transition">Kiosco</a>
                 <a href="/balance" class="text-slate-400 hover:text-white transition">Balance & Reportes</a>
+                {% if user.rol == 'ADMIN' %}
+                <a href="/usuarios" class="text-slate-400 hover:text-white transition">Usuarios</a>
+                {% endif %}
+                <a href="/molinete" class="text-slate-400 hover:text-white transition">Molinete</a>
             </nav>
         </div>
-        <a href="/socios" class="text-xs bg-slate-800 hover:bg-slate-700 px-3.5 py-2 rounded-xl text-slate-200 transition font-semibold">&larr; Volver a Socios</a>
+        <a href="/socios" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg text-slate-200 font-semibold transition">&larr; Volver al Padrón</a>
     </header>
 
-    <main class="flex-1 p-6 max-w-7xl mx-auto w-full space-y-6">
-        <!-- Encabezado del Socio -->
-        <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <main class="flex-1 p-6 max-w-5xl mx-auto w-full space-y-6">
+        <!-- DATOS DEL SOCIO SELECCIONADO -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex items-center justify-between">
             <div class="flex items-center space-x-4">
                 {% if socio.foto_base64 %}
-                    <img src="{{ socio.foto_base64 }}" class="w-16 h-16 rounded-full object-cover border-2 border-emerald-500 shadow-md">
+                    <img src="{{ socio.foto_base64 }}" alt="Foto Socio" class="w-14 h-14 rounded-full object-cover border border-slate-700 shadow-md">
                 {% else %}
-                    <div class="w-16 h-16 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-lg text-emerald-400">{{ socio.nombre[:1] }}{{ socio.apellido[:1] }}</div>
+                    <div class="w-14 h-14 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 font-bold text-base">
+                        {{ socio.nombre[:1] }}{{ socio.apellido[:1] }}
+                    </div>
                 {% endif %}
                 <div>
-                    <h1 class="text-2xl font-black text-white">{{ socio.nombre }} {{ socio.apellido }}</h1>
+                    <h1 class="text-xl font-black text-white">{{ socio.nombre }} {{ socio.apellido }}</h1>
                     <p class="text-xs text-slate-400 font-mono">DNI: {{ socio.dni }} &bull; {{ socio.edad }} años &bull; Plan: {{ socio.plan.nombre if socio.plan else 'Sin Plan' }}</p>
                 </div>
             </div>
-            <button onclick="document.getElementById('modal-registro-medidas').classList.remove('hidden')" class="bg-emerald-500 hover:bg-emerald-600 px-4 py-2.5 rounded-xl text-xs font-bold text-white transition flex items-center gap-2 shadow-lg shadow-emerald-500/20">
-                <span>+</span> Registrar Nueva Medición
+            <button onclick="document.getElementById('modal-cargar-medida').classList.remove('hidden')" class="bg-emerald-500 hover:bg-emerald-600 px-4 py-2.5 rounded-xl text-xs font-bold text-white transition flex items-center gap-1.5 shadow-lg shadow-emerald-500/20">
+                <span>+</span> Registrar Medición
             </button>
         </div>
 
-        <!-- Tabla Histórica de Mediciones -->
-        <div class="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
-            <div class="p-5 border-b border-slate-800 flex justify-between items-center">
-                <h3 class="font-bold text-base text-white">Historial de Mediciones Corporales</h3>
-                <span class="text-xs text-slate-400">{{ evoluciones|length }} registros cargados</span>
-            </div>
+        <!-- HISTORIAL DE MEDICIONES CORPORALES -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+            <h2 class="text-base font-bold text-white flex items-center gap-2">
+                <span>📈</span> Ficha de Evolución y Mediciones Antropométricas
+            </h2>
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-sm">
-                    <thead class="bg-slate-950/70 text-slate-400 text-xs uppercase font-semibold border-b border-slate-800">
+                    <thead class="bg-slate-950/60 text-slate-400 text-xs uppercase border-b border-slate-800">
                         <tr>
-                            <th class="p-3.5">Fecha</th>
-                            <th class="p-3.5">Peso</th>
-                            <th class="p-3.5">Altura</th>
-                            <th class="p-3.5">IMC</th>
-                            <th class="p-3.5">% Grasa</th>
-                            <th class="p-3.5">Cintura</th>
-                            <th class="p-3.5">Pecho</th>
-                            <th class="p-3.5">Brazo</th>
-                            <th class="p-3.5">Notas / Evolución</th>
-                            <th class="p-3.5 text-right">Acción</th>
+                            <th class="p-3">Fecha</th>
+                            <th class="p-3">Peso</th>
+                            <th class="p-3">Altura</th>
+                            <th class="p-3">IMC</th>
+                            <th class="p-3">% Grasa</th>
+                            <th class="p-3">Cintura</th>
+                            <th class="p-3">Pecho</th>
+                            <th class="p-3">Brazo</th>
+                            <th class="p-3">Notas</th>
+                            <th class="p-3 text-right">Acción</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-800">
                         {% for ev in evoluciones %}
-                        <tr class="hover:bg-slate-800/40 transition">
-                            <td class="p-3.5 font-mono text-xs text-slate-300">{{ ev.fecha.strftime('%d/%m/%Y') }}</td>
-                            <td class="p-3.5 font-bold text-white">{{ ev.peso_kg or '-' }} kg</td>
-                            <td class="p-3.5 text-slate-300">{{ ev.altura_cm or '-' }} cm</td>
-                            <td class="p-3.5">
+                        <tr class="hover:bg-slate-800/30 transition">
+                            <td class="p-3 text-xs font-mono text-slate-400">{{ ev.fecha.strftime('%d/%m/%Y') }}</td>
+                            <td class="p-3 font-bold text-white">{{ ev.peso_kg }} kg</td>
+                            <td class="p-3 text-xs text-slate-300">{{ ev.altura_cm ~ ' cm' if ev.altura_cm else '-' }}</td>
+                            <td class="p-3">
                                 {% if ev.imc %}
-                                    <span class="px-2 py-0.5 rounded text-xs font-bold {% if ev.imc < 25 %}bg-emerald-950 text-emerald-400 border border-emerald-800{% elif ev.imc < 30 %}bg-amber-950 text-amber-400 border border-amber-800{% else %}bg-rose-950 text-rose-400 border border-rose-800{% endif %}">
+                                    <span class="px-2 py-0.5 rounded text-xs font-bold bg-indigo-950 text-indigo-300 border border-indigo-800">
                                         {{ ev.imc }}
                                     </span>
-                                {% else %}-{% endif %}
+                                {% else %}
+                                    <span class="text-slate-500 text-xs">-</span>
+                                {% endif %}
                             </td>
-                            <td class="p-3.5 font-mono text-xs text-indigo-400">{{ ev.porcentaje_grasa ~ '%' if ev.porcentaje_grasa else '-' }}</td>
-                            <td class="p-3.5 text-slate-300 text-xs">{{ ev.cintura_cm ~ ' cm' if ev.cintura_cm else '-' }}</td>
-                            <td class="p-3.5 text-slate-300 text-xs">{{ ev.pecho_cm ~ ' cm' if ev.pecho_cm else '-' }}</td>
-                            <td class="p-3.5 text-slate-300 text-xs">{{ ev.brazo_cm ~ ' cm' if ev.brazo_cm else '-' }}</td>
-                            <td class="p-3.5 text-xs text-slate-400 max-w-xs truncate">{{ ev.notas or '-' }}</td>
-                            <td class="p-3.5 text-right">
-                                <form action="/socios/evolucion/eliminar/{{ ev.id }}" method="POST" onsubmit="return confirm('¿Eliminar esta medición?');">
+                            <td class="p-3 text-xs text-slate-300">{{ ev.porcentaje_grasa ~ '%' if ev.porcentaje_grasa else '-' }}</td>
+                            <td class="p-3 text-xs text-emerald-400 font-bold">{{ ev.cintura_cm ~ ' cm' if ev.cintura_cm else '-' }}</td>
+                            <td class="p-3 text-xs text-slate-300">{{ ev.pecho_cm ~ ' cm' if ev.pecho_cm else '-' }}</td>
+                            <td class="p-3 text-xs text-slate-300">{{ ev.brazo_cm ~ ' cm' if ev.brazo_cm else '-' }}</td>
+                            <td class="p-3 text-xs text-slate-400 italic max-w-xs truncate">{{ ev.notas or '-' }}</td>
+                            <td class="p-3 text-right">
+                                <form action="/socios/evolucion/eliminar/{{ ev.id }}" method="POST" onsubmit="return confirm('¿Eliminar este registro de medición?');">
                                     <button type="submit" class="text-slate-500 hover:text-rose-400 text-xs px-2 py-1 transition">&times; Borrar</button>
                                 </form>
                             </td>
                         </tr>
                         {% else %}
-                        <tr><td colspan="10" class="p-8 text-center text-slate-500 text-sm">No hay mediciones registradas para este socio. Presiona "+ Registrar Nueva Medición".</td></tr>
+                        <tr><td colspan="10" class="p-8 text-center text-slate-500 text-xs">Aún no se cargaron mediciones físicas para este socio.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -101,58 +110,58 @@
         </div>
     </main>
 
-    <!-- Modal Registrar Medición -->
-    <div id="modal-registro-medidas" class="hidden fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div class="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-3xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+    <!-- MODAL PARA REGISTRAR NUEVA MEDICIÓN -->
+    <div id="modal-cargar-medida" class="hidden fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-4">
             <div class="flex justify-between items-center">
                 <h3 class="font-bold text-lg text-white">Nueva Medición Física</h3>
-                <button onclick="document.getElementById('modal-registro-medidas').classList.add('hidden')" class="text-slate-400 hover:text-white text-xl">&times;</button>
+                <button onclick="document.getElementById('modal-cargar-medida').classList.add('hidden')" class="text-slate-400 hover:text-white text-xl">&times;</button>
             </div>
             <form action="/socios/evolucion/crear/{{ socio.id }}" method="POST" class="space-y-3">
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-xs text-slate-400 mb-1">Fecha de Medición</label>
-                        <input type="date" name="fecha" value="{{ hoy }}" required class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-sm text-white focus:outline-none focus:border-emerald-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs text-slate-400 mb-1">Peso (kg)</label>
-                        <input type="number" step="0.1" name="peso_kg" placeholder="Ej: 78.5" required class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-sm text-white focus:outline-none focus:border-emerald-500">
-                    </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Fecha de la Medición</label>
+                    <input type="date" name="fecha" value="{{ hoy }}" required class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-sm text-white">
                 </div>
                 <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Peso (kg) *</label>
+                        <input type="number" step="0.1" name="peso_kg" required placeholder="75.5" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-sm text-white font-mono">
+                    </div>
                     <div>
                         <label class="block text-xs text-slate-400 mb-1">Altura (cm)</label>
-                        <input type="number" step="0.1" name="altura_cm" placeholder="Ej: 175" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-sm text-white focus:outline-none focus:border-emerald-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs text-slate-400 mb-1">% Grasa Corporal (opcional)</label>
-                        <input type="number" step="0.1" name="porcentaje_grasa" placeholder="Ej: 18.5" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-sm text-white focus:outline-none focus:border-emerald-500">
+                        <input type="number" step="0.5" name="altura_cm" placeholder="175" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-sm text-white font-mono">
                     </div>
                 </div>
-                <div class="grid grid-cols-4 gap-2 pt-1">
+                <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-[11px] text-slate-400 mb-1">Cintura (cm)</label>
-                        <input type="number" step="0.5" name="cintura_cm" placeholder="cm" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-white">
+                        <label class="block text-xs text-slate-400 mb-1">% de Grasa Corporal</label>
+                        <input type="number" step="0.1" name="porcentaje_grasa" placeholder="18.5" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-sm text-white font-mono">
                     </div>
                     <div>
-                        <label class="block text-[11px] text-slate-400 mb-1">Pecho (cm)</label>
-                        <input type="number" step="0.5" name="pecho_cm" placeholder="cm" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-white">
+                        <label class="block text-xs text-slate-400 mb-1">Cintura (cm)</label>
+                        <input type="number" step="0.5" name="cintura_cm" placeholder="82" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-sm text-white font-mono">
+                    </div>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                    <div>
+                        <label class="block text-[10px] text-slate-400 mb-1">Pecho (cm)</label>
+                        <input type="number" step="0.5" name="pecho_cm" placeholder="95" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-white font-mono">
                     </div>
                     <div>
-                        <label class="block text-[11px] text-slate-400 mb-1">Brazo (cm)</label>
-                        <input type="number" step="0.5" name="brazo_cm" placeholder="cm" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-white">
+                        <label class="block text-[10px] text-slate-400 mb-1">Brazo (cm)</label>
+                        <input type="number" step="0.5" name="brazo_cm" placeholder="34" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-white font-mono">
                     </div>
                     <div>
-                        <label class="block text-[11px] text-slate-400 mb-1">Cadera (cm)</label>
-                        <input type="number" step="0.5" name="cadera_cm" placeholder="cm" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-white">
+                        <label class="block text-[10px] text-slate-400 mb-1">Cadera (cm)</label>
+                        <input type="number" step="0.5" name="cadera_cm" placeholder="98" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-white font-mono">
                     </div>
                 </div>
                 <div>
-                    <label class="block text-xs text-slate-400 mb-1">Notas u Observaciones del Profesor</label>
-                    <textarea name="notas" rows="2" placeholder="Ej: Buen progreso en fuerza, bajó 2 cm de cintura..." class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"></textarea>
+                    <label class="block text-xs text-slate-400 mb-1">Observaciones / Notas del Entrenador</label>
+                    <textarea name="notas" rows="2" placeholder="Progreso notable en fuerza y disminución de grasa abdominal..." class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-xs text-white"></textarea>
                 </div>
                 <div class="flex justify-end gap-2 pt-2">
-                    <button type="button" onclick="document.getElementById('modal-registro-medidas').classList.add('hidden')" class="px-4 py-2 bg-slate-800 rounded-xl text-xs font-semibold hover:bg-slate-700">Cancelar</button>
+                    <button type="button" onclick="document.getElementById('modal-cargar-medida').classList.add('hidden')" class="px-4 py-2 bg-slate-800 rounded-xl text-xs">Cancelar</button>
                     <button type="submit" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 rounded-xl text-xs font-bold text-white shadow-lg shadow-emerald-500/20">Guardar Medición</button>
                 </div>
             </form>

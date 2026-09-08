@@ -1,0 +1,25 @@
+├── database.sql                  <- Script de base de datos para Supabase
+├── requirements.txt              <- Dependencias de Python
+├── Procfile                      <- Comando de arranque para Render
+├── static/
+│   └── logo.png                  <- (Opcional) Logo de tu gimnasio
+├── templates/
+│   ├── login_hub.html            <- Portal de login dual (Admin y Socio)
+│   ├── dashboard.html            <- Panel de control principal y métricas
+│   ├── socios.html               <- Padrón de socios, apto médico y prórrogas
+│   ├── rutinas_admin.html        <- Armado de planes de entrenamiento
+│   ├── evolucion_admin.html      <- Ficha física, medidas e IMC
+│   ├── clases_profesores.html    <- Profesores, sueldos y grilla de clases
+│   ├── caja_pagos.html           <- Cobro de cuotas, aranceles y caja
+│   ├── kiosco.html               <- Venta de productos y QR Mercado Pago
+│   ├── balance.html              <- Balance financiero y WhatsApp de vencimientos
+│   ├── usuarios.html             <- Gestión de operadores y administradores
+│   ├── molinete.html             <- Simulador visual de control de accesos
+│   └── socio_credencial.html     <- Credencial del socio, QR y rutinas
+└── app/
+    ├── __init__.py
+    ├── database.py               <- Conexión y Pool con PostgreSQL
+    ├── models.py                 <- Tablas y relaciones en SQLAlchemy
+    ├── auth.py                   <- Cifrado de claves y tokens JWT
+    ├── billing.py                <- Facturación ARCA (ex AFIP), PDF y Email
+    └── main.py                   <- Controlador principal y endpoints FastAPI

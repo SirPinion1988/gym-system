@@ -9,7 +9,7 @@
 <body class="bg-slate-950 text-slate-100 min-h-screen p-4 flex flex-col items-center justify-center">
 
     <div class="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl relative overflow-hidden space-y-4">
-        <!-- Encabezado con Nombre y Logo -->
+        <!-- ENCABEZADO CON IDENTIDAD INSTITUCIONAL -->
         <div class="flex justify-between items-center">
             <div class="flex items-center space-x-3">
                 {% if socio.foto_base64 %}
@@ -31,18 +31,21 @@
             </div>
         </div>
 
-        <!-- Selector de 3 Pestañas: Acceso, Rutina y Evolución -->
+        <!-- SELECTOR DE 3 PESTAÑAS: ACCESO | RUTINA | EVOLUCIÓN -->
         <div class="grid grid-cols-3 gap-1.5 bg-slate-950 p-1.5 rounded-2xl border border-slate-800 text-center text-xs font-bold">
             <button id="btn-tab-acceso" onclick="cambiarSeccion('acceso')" class="py-2 rounded-xl transition bg-emerald-500 text-white shadow-md">Acceso</button>
             <button id="btn-tab-rutina" onclick="cambiarSeccion('rutina')" class="py-2 rounded-xl transition text-slate-400 hover:text-white">Rutina</button>
             <button id="btn-tab-evolucion" onclick="cambiarSeccion('evolucion')" class="py-2 rounded-xl transition text-slate-400 hover:text-white">Evolución</button>
         </div>
 
-        <!-- SECCIÓN 1: ACCESO Y QR -->
+        <!-- ========================================================== -->
+        <!-- SECCIÓN 1: ACCESO, QR Y PAGOS ONLINE                       -->
+        <!-- ========================================================== -->
         <div id="seccion-acceso" class="space-y-4">
+            <!-- Cartel indicador de autorización de paso -->
             {% if habilitado %}
                 <div class="bg-emerald-950/70 border border-emerald-500/40 text-emerald-300 text-xs font-black px-3 py-2 rounded-xl text-center flex items-center justify-center gap-2">
-                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> PUEDE PASAR
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> PUEDE PASAR AL GIMNASIO
                 </div>
             {% else %}
                 <div class="bg-rose-950/70 border border-rose-500/40 text-rose-300 text-xs font-black px-3 py-2 rounded-xl text-center flex items-center justify-center gap-2">
@@ -50,25 +53,29 @@
                 </div>
             {% endif %}
 
+            <!-- Código QR generado en vivo para apoyar en el molinete -->
             <div class="bg-white p-4 rounded-2xl mx-auto text-center shadow-inner">
                 <img src="{{ qr_image }}" alt="Código QR Socio" class="w-44 h-44 mx-auto">
             </div>
 
+            <!-- Datos de vigencia de cuota y certificado médico -->
             <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-2 text-xs">
-                <div class="flex justify-between"><span class="text-slate-400">Plan:</span><span class="font-bold text-white">{{ plan.nombre if plan else 'Sin Plan' }}</span></div>
-                <div class="flex justify-between"><span class="text-slate-400">Vencimiento:</span><span class="font-mono {% if cuota_al_dia %}text-slate-200{% else %}text-rose-400 font-bold{% endif %}">{{ socio.fecha_vencimiento_cuota.strftime('%d/%m/%Y') if socio.fecha_vencimiento_cuota else 'Pendiente' }}</span></div>
+                <div class="flex justify-between"><span class="text-slate-400">Plan contratado:</span><span class="font-bold text-white">{{ plan.nombre if plan else 'Sin Plan' }}</span></div>
+                <div class="flex justify-between"><span class="text-slate-400">Vencimiento Cuota:</span><span class="font-mono {% if cuota_al_dia %}text-slate-200{% else %}text-rose-400 font-bold{% endif %}">{{ socio.fecha_vencimiento_cuota.strftime('%d/%m/%Y') if socio.fecha_vencimiento_cuota else 'Pendiente' }}</span></div>
                 <div class="flex justify-between"><span class="text-slate-400">Apto Médico:</span><span class="{% if apto_al_dia %}text-emerald-400{% else %}text-amber-400 font-bold{% endif %}">{{ 'Vigente hasta ' + socio.apto_medico_vencimiento.strftime('%d/%m/%Y') if apto_al_dia else 'Presentar Apto' }}</span></div>
             </div>
 
+            <!-- Botón de Mercado Pago visible solo si el socio adeuda su abono -->
             {% if not cuota_al_dia and init_point_mp %}
                 <a href="{{ init_point_mp }}" class="w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 rounded-xl text-xs transition flex items-center justify-center gap-2 shadow-lg shadow-sky-500/20">
                     <span>💳</span> Pagar Cuota con Mercado Pago (${{ "%.2f"|format(plan.precio) }})
                 </a>
             {% endif %}
 
+            <!-- Historial de comprobantes fiscales con botón para descargar el PDF -->
             {% if facturas %}
                 <div class="pt-2 border-t border-slate-800 space-y-1 max-h-32 overflow-y-auto">
-                    <span class="text-[10px] font-bold text-slate-400 block mb-1">Mis Comprobantes ARCA:</span>
+                    <span class="text-[10px] font-bold text-slate-400 block mb-1">Mis Comprobantes Oficiales ARCA:</span>
                     {% for f in facturas %}
                     <a href="/factura/descargar/{{ f.id }}" class="w-full bg-slate-800/80 hover:bg-slate-800 text-slate-300 px-3 py-1.5 rounded-xl text-[11px] flex justify-between items-center border border-slate-700/60">
                         <span>Comp. {{ "%04d"|format(f.punto_venta) }}-{{ "%08d"|format(f.numero_comprobante) }}</span>
@@ -79,7 +86,9 @@
             {% endif %}
         </div>
 
-        <!-- SECCIÓN 2: RUTINA (GRATUITA Y TILDABLE) -->
+        <!-- ========================================================== -->
+        <!-- SECCIÓN 2: RUTINA GRATUITA Y TILDADO DE EJERCICIOS         -->
+        <!-- ========================================================== -->
         <div id="seccion-rutina" class="space-y-4 hidden">
             {% if rutina %}
                 <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4">
@@ -90,12 +99,14 @@
                         </div>
                         <button onclick="reiniciarRutina({{ rutina.id }})" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded-lg border border-slate-700">🔄 Reiniciar</button>
                     </div>
+                    <!-- Barra de progreso del entrenamiento en vivo -->
                     <div class="space-y-1 mt-2">
-                        <div class="flex justify-between text-[11px]"><span class="text-slate-400">Progreso:</span><span id="progreso-texto" class="font-bold text-emerald-400">{{ porcentaje_rutina }}%</span></div>
+                        <div class="flex justify-between text-[11px]"><span class="text-slate-400">Progreso completado:</span><span id="progreso-texto" class="font-bold text-emerald-400">{{ porcentaje_rutina }}%</span></div>
                         <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden"><div id="progreso-barra" class="bg-emerald-500 h-2 rounded-full transition-all duration-300" style="width: {{ porcentaje_rutina }}%"></div></div>
                     </div>
                 </div>
 
+                <!-- Lista de ejercicios con casilla de verificación asíncrona -->
                 <div class="space-y-2 max-h-96 overflow-y-auto pr-1">
                     {% for ej in rutina.ejercicios %}
                     <div id="card-ej-{{ ej.id }}" class="p-3 rounded-2xl border transition flex items-start justify-between gap-3 {% if ej.completado %}bg-emerald-950/20 border-emerald-800/60 opacity-80{% else %}bg-slate-950 border-slate-800{% endif %}">
@@ -105,7 +116,7 @@
                             <div class="text-[11px] text-slate-400 mt-1 flex flex-wrap gap-x-2 font-mono">
                                 <span>{{ ej.series }}x{{ ej.repeticiones }}</span>
                                 {% if ej.peso_sugerido %}<span>• {{ ej.peso_sugerido }}</span>{% endif %}
-                                <span>• Desc: {{ ej.descanso }}</span>
+                                <span>• Descanso: {{ ej.descanso }}</span>
                             </div>
                         </div>
                         <button onclick="toggleEjercicio({{ ej.id }})" class="mt-1 w-7 h-7 rounded-xl flex items-center justify-center border transition {% if ej.completado %}bg-emerald-500 border-emerald-400 text-white{% else %}bg-slate-900 border-slate-700 text-transparent hover:border-emerald-500{% endif %}">
@@ -118,16 +129,17 @@
                 <div class="bg-slate-950 border border-slate-800 rounded-2xl p-8 text-center space-y-2">
                     <span class="text-3xl">📋</span>
                     <h3 class="font-bold text-white text-sm">Sin rutina asignada</h3>
-                    <p class="text-xs text-slate-400">Pídele a tu profesor o en recepción que cargue tu plan de entrenamiento gratuito.</p>
+                    <p class="text-xs text-slate-400">Pídele a tu entrenador que cargue tu plan de entrenamiento gratuito.</p>
                 </div>
             {% endif %}
         </div>
 
-        <!-- SECCIÓN 3: EVOLUCIÓN FÍSICA Y MEDIDAS -->
+        <!-- ========================================================== -->
+        <!-- SECCIÓN 3: EVOLUCIÓN FÍSICA Y MÉTRICAS (IMC)               -->
+        <!-- ========================================================== -->
         <div id="seccion-evolucion" class="space-y-4 hidden">
             {% if socio.evoluciones %}
                 {% set ultima = socio.evoluciones[0] %}
-                <!-- Tarjeta Última Medición -->
                 <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-3">
                     <div class="flex justify-between items-center">
                         <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Último Control: {{ ultima.fecha.strftime('%d/%m/%Y') }}</span>
@@ -156,14 +168,13 @@
                     {% endif %}
                 </div>
 
-                <!-- Historial Cronológico -->
                 <div class="space-y-2 max-h-60 overflow-y-auto pr-1">
                     <span class="text-[11px] font-bold text-slate-400 block">Historial de Mediciones:</span>
                     {% for ev in socio.evoluciones %}
                     <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 text-xs flex justify-between items-center">
                         <span class="font-mono text-slate-400">{{ ev.fecha.strftime('%d/%m/%Y') }}</span>
                         <span class="font-bold text-white">{{ ev.peso_kg }} kg</span>
-                        <span class="text-slate-400">{{ ev.cintura_cm ~ ' cm cint.' if ev.cintura_cm else '' }}</span>
+                        <span class="text-slate-400">{{ ev.cintura_cm ~ ' cm' if ev.cintura_cm else '' }}</span>
                         {% if ev.imc %}<span class="text-indigo-400 font-bold">IMC {{ ev.imc }}</span>{% endif %}
                     </div>
                     {% endfor %}
@@ -171,18 +182,19 @@
             {% else %}
                 <div class="bg-slate-950 border border-slate-800 rounded-2xl p-8 text-center space-y-2">
                     <span class="text-3xl">⚖️</span>
-                    <h3 class="font-bold text-white text-sm">Sin controles físicos registrados</h3>
-                    <p class="text-xs text-slate-400">Pide una medición en recepción o a tu entrenador para registrar peso, % de grasa y medidas en tu ficha.</p>
+                    <h3 class="font-bold text-white text-sm">Sin mediciones corporales</h3>
+                    <p class="text-xs text-slate-400">Pide una medición en recepción o a tu profesor para registrar tu peso y medidas.</p>
                 </div>
             {% endif %}
         </div>
 
         <div class="pt-3 border-t border-slate-800 text-center">
-            <a href="/" class="text-xs text-slate-400 hover:text-white">Cerrar sesión</a>
+            <a href="/" class="text-xs text-slate-400 hover:text-white">Cerrar credencial</a>
         </div>
     </div>
 
     <script>
+        // Alterna la visibilidad entre las 3 pestañas principales de la credencial
         function cambiarSeccion(tipo) {
             const secAcceso = document.getElementById('seccion-acceso');
             const secRutina = document.getElementById('seccion-rutina');
@@ -211,6 +223,7 @@
             }
         }
 
+        // Tilda o destilda un ejercicio en vivo sin recargar la pantalla
         async function toggleEjercicio(ejercicioId) {
             try {
                 const res = await fetch('/api/socio/rutina/toggle-ejercicio/' + ejercicioId, { method: 'POST' });
@@ -233,8 +246,9 @@
             } catch (err) { alert('Error al actualizar.'); }
         }
 
+        // Limpia todos los tildes para comenzar una nueva semana de entrenamiento
         async function reiniciarRutina(rutinaId) {
-            if (!confirm('¿Deseas reiniciar los tildes de toda la rutina?')) return;
+            if (!confirm('¿Deseas reiniciar los tildes de toda la rutina para empezar de nuevo?')) return;
             const res = await fetch('/api/socio/rutina/reiniciar/' + rutinaId, { method: 'POST' });
             if (res.ok) window.location.reload();
         }

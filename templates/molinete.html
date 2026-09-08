@@ -3,47 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simulador de Molinete | GymPro</title>
+    <title>Simulador de Molinete | {{ gym_nombre }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col items-center justify-center p-6">
-    <div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl text-center">
-        <!-- Indicador de Semáforo / Foto -->
-        <div id="contenedor-foto" class="mb-4">
-            <div id="luz-estado" class="w-24 h-24 rounded-full mx-auto mb-2 bg-slate-800 border-4 border-slate-700 flex items-center justify-center transition-all duration-300 shadow-xl overflow-hidden">
-                <span id="icono-estado" class="text-3xl">🔒</span>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col items-center justify-center p-4">
+
+    <!-- Tarjeta Principal del Simulador -->
+    <div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl space-y-6 text-center">
+        <div>
+            <div class="w-12 h-12 rounded-2xl bg-indigo-500/20 border border-indigo-500/40 mx-auto flex items-center justify-center text-2xl mb-2">
+                🔄
+            </div>
+            <h1 class="text-xl font-black text-white">Simulador de Acceso / Molinete</h1>
+            <p class="text-xs text-slate-400 mt-1">Ingresa el código o escanea con el lector USB de código de barras / QR.</p>
+        </div>
+
+        <!-- Pantalla de Estado del Molinete (Cambia dinámicamente según la respuesta del servidor) -->
+        <div id="pantalla-estado" class="bg-slate-950 border border-slate-800 rounded-2xl p-6 space-y-3 transition-colors duration-300">
+            <!-- Foto del socio cuando pasa -->
+            <div id="molinete-foto-container" class="w-20 h-20 mx-auto rounded-full overflow-hidden border-2 border-slate-700 bg-slate-900 flex items-center justify-center">
+                <span id="molinete-foto-fallback" class="text-slate-500 text-xs font-bold">ESPERANDO</span>
+                <img id="molinete-foto" src="" alt="Foto" class="w-full h-full object-cover hidden">
+            </div>
+
+            <div>
+                <h3 id="molinete-nombre" class="text-base font-bold text-white">Esperando Lectura...</h3>
+                <p id="molinete-motivo" class="text-xs text-slate-400 mt-0.5">Apoya el código QR frente a la cámara o ingresa el token.</p>
             </div>
         </div>
 
-        <h1 class="text-2xl font-black text-white mb-1">Molinete de Acceso</h1>
-        <p id="texto-estado" class="text-xs text-slate-400 mb-6">Listo para leer código QR o token de acceso.</p>
-
-        <!-- Formulario Token QR -->
-        <form id="form-molinete" onsubmit="validarAcceso(event)" class="space-y-4">
+        <!-- Formulario para ingreso manual o lector óptico -->
+        <form id="form-molinete" onsubmit="validarAcceso(event)" class="space-y-3">
             <div>
-                <input type="text" id="input-token" required placeholder="Escanear o ingresar token QR..." class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm font-mono text-center text-white focus:outline-none focus:border-emerald-500">
+                <input type="text" id="input-token" placeholder="Token QR (ej: GYM-38450123-ab12)" required autofocus class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-center text-sm font-mono text-white focus:outline-none focus:border-indigo-500">
             </div>
-            <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 rounded-xl text-sm transition shadow-lg shadow-emerald-500/20">
-                Validar Paso
+            <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl text-sm transition shadow-lg shadow-indigo-600/20">
+                Simular Paso por Molinete
             </button>
         </form>
 
-        <div class="mt-6 pt-4 border-t border-slate-800 flex justify-between text-xs text-slate-400">
-            <a href="/dashboard" class="hover:text-white transition">&larr; Volver al Panel</a>
-            <span class="font-mono text-slate-500">Hardware Sim: ONLINE</span>
+        <div class="pt-2 border-t border-slate-800">
+            <a href="/dashboard" class="text-xs text-slate-400 hover:text-white transition">&larr; Volver al Dashboard</a>
         </div>
     </div>
 
     <script>
+        // Envía el token al endpoint /api/molinete/validar para verificar cuota, apto médico y prórroga
         async function validarAcceso(event) {
             event.preventDefault();
-            const input = document.getElementById('input-token');
-            const token = input.value.trim();
+            const inputToken = document.getElementById('input-token');
+            const token = inputToken.value.trim();
             if (!token) return;
 
-            const luz = document.getElementById('luz-estado');
-            const icono = document.getElementById('icono-estado');
-            const texto = document.getElementById('texto-estado');
+            const pantalla = document.getElementById('pantalla-estado');
+            const nombreEl = document.getElementById('molinete-nombre');
+            const motivoEl = document.getElementById('molinete-motivo');
+            const fotoImg = document.getElementById('molinete-foto');
+            const fotoFallback = document.getElementById('molinete-foto-fallback');
 
             try {
                 const formData = new FormData();
@@ -55,37 +71,37 @@
                 });
                 const data = await res.json();
 
-                // Si viene foto del socio, mostrarla en el círculo
+                // Actualizar foto si vino en la respuesta
                 if (data.foto) {
-                    luz.innerHTML = `<img src="${data.foto}" class="w-full h-full object-cover">`;
+                    fotoImg.src = data.foto;
+                    fotoImg.classList.remove('hidden');
+                    fotoFallback.classList.add('hidden');
                 } else {
-                    luz.innerHTML = `<span id="icono-estado" class="text-3xl">${data.abrir ? '🔓' : (data.color === 'yellow' ? '⚠️' : '⛔')}</span>`;
+                    fotoImg.classList.add('hidden');
+                    fotoFallback.classList.remove('hidden');
+                    fotoFallback.innerText = data.abrir ? 'OK' : 'X';
                 }
 
+                nombreEl.innerText = data.socio || 'QR Desconocido';
+                motivoEl.innerText = data.motivo;
+
+                // Modificar el color visual de la pantalla (Verde: Paso permitido | Rojo/Amarillo: Denegado)
                 if (data.abrir) {
-                    luz.className = "w-24 h-24 rounded-full mx-auto mb-2 bg-emerald-500 border-4 border-emerald-300 flex items-center justify-center transition-all duration-300 shadow-2xl shadow-emerald-500/50 overflow-hidden";
-                    texto.innerHTML = `<b class="text-emerald-400 text-sm font-bold">${data.socio}</b><br/><span class="text-emerald-300 font-semibold">${data.motivo}</span>`;
+                    pantalla.className = "bg-emerald-950/60 border border-emerald-500/50 rounded-2xl p-6 space-y-3";
+                    nombreEl.className = "text-base font-bold text-emerald-300";
+                } else if (data.color === 'yellow') {
+                    pantalla.className = "bg-amber-950/60 border border-amber-500/50 rounded-2xl p-6 space-y-3";
+                    nombreEl.className = "text-base font-bold text-amber-300";
                 } else {
-                    if (data.color === 'yellow') {
-                        luz.className = "w-24 h-24 rounded-full mx-auto mb-2 bg-amber-500 border-4 border-amber-300 flex items-center justify-center transition-all duration-300 shadow-2xl shadow-amber-500/50 overflow-hidden";
-                        texto.innerHTML = `<b class="text-amber-400 text-sm font-bold">${data.socio || ''}</b><br/><span class="text-amber-300 font-semibold">${data.motivo}</span>`;
-                    } else {
-                        luz.className = "w-24 h-24 rounded-full mx-auto mb-2 bg-rose-600 border-4 border-rose-400 flex items-center justify-center transition-all duration-300 shadow-2xl shadow-rose-600/50 overflow-hidden";
-                        texto.innerHTML = `<b class="text-rose-400 text-sm font-bold">${data.socio || ''}</b><br/><span class="text-rose-300 font-semibold">${data.motivo}</span>`;
-                    }
+                    pantalla.className = "bg-rose-950/60 border border-rose-500/50 rounded-2xl p-6 space-y-3";
+                    nombreEl.className = "text-base font-bold text-rose-300";
                 }
 
-                input.value = '';
-                input.focus();
-
-                setTimeout(() => {
-                    luz.className = "w-24 h-24 rounded-full mx-auto mb-2 bg-slate-800 border-4 border-slate-700 flex items-center justify-center transition-all duration-300 shadow-xl overflow-hidden";
-                    luz.innerHTML = `<span id="icono-estado" class="text-3xl">🔒</span>`;
-                    texto.innerText = "Listo para leer código QR o token de acceso.";
-                }, 4000);
-
+                // Limpiar el campo y prepararlo para la siguiente lectura
+                inputToken.value = '';
+                inputToken.focus();
             } catch (err) {
-                alert("Error al conectar con la central de validación.");
+                alert('Error al conectar con el servidor de validación.');
             }
         }
     </script>

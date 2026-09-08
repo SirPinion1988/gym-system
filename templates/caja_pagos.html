@@ -35,7 +35,9 @@
 
     <main class="flex-1 p-6 max-w-7xl mx-auto w-full space-y-6">
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <!-- Cobro de Cuota Mostrador -->
+            <!-- ========================================================== -->
+            <!-- FORMULARIO 1: REGISTRAR COBRO DE CUOTA EN MOSTRADOR        -->
+            <!-- ========================================================== -->
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col justify-between">
                 <div>
                     <h2 class="text-lg font-bold text-emerald-400 mb-1 flex items-center gap-2">
@@ -80,7 +82,9 @@
                 </div>
             </div>
 
-            <!-- Alta de Nuevo Plan -->
+            <!-- ========================================================== -->
+            <!-- FORMULARIO 2: CREAR NUEVO PLAN DE CUOTA                    -->
+            <!-- ========================================================== -->
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col justify-between">
                 <div>
                     <h2 class="text-lg font-bold text-indigo-400 mb-1 flex items-center gap-2">
@@ -109,7 +113,9 @@
             </div>
         </div>
 
-        <!-- LISTA Y MODIFICACIÓN DE PLANES -->
+        <!-- ========================================================== -->
+        <!-- TABLA: LISTA Y EDICIÓN DE PLANES DISPONIBLES               -->
+        <!-- ========================================================== -->
         <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
             <div class="flex justify-between items-center mb-4">
                 <div>
@@ -158,12 +164,14 @@
             </div>
         </div>
 
-        <!-- HISTORIAL DE PAGOS CON ANULACIÓN SEGURA -->
+        <!-- ========================================================== -->
+        <!-- TABLA: HISTORIAL DE PAGOS CON ANULACIÓN SEGURA            -->
+        <!-- ========================================================== -->
         <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
             <div class="flex justify-between items-center mb-4">
                 <div>
                     <h3 class="font-bold text-base text-white">Historial de Cobros y Cuotas Registradas</h3>
-                    <p class="text-xs text-slate-400">Si registraste un cobro con datos incorrectos, puedes corregirlo o anularlo.</p>
+                    <p class="text-xs text-slate-400">Si registraste un cobro por error, anularlo retrotrae la cuota del socio de inmediato.</p>
                 </div>
             </div>
             <div class="overflow-x-auto">
@@ -201,7 +209,8 @@
                                 <button onclick="abrirModalEditarPago({{ p.id }}, {{ p.monto }}, '{{ p.metodo_pago }}', '{{ p.concepto }}', '{{ p.socio.nombre if p.socio else '' }} {{ p.socio.apellido if p.socio else '' }}')" class="bg-slate-800 hover:bg-slate-700 text-xs px-2.5 py-1 rounded-lg text-indigo-300 font-bold transition">
                                     ✏️ Corregir
                                 </button>
-                                <form action="/pagos/eliminar/{{ p.id }}" method="POST" class="inline" onsubmit="return confirm('¿Seguro que deseas anular este cobro? Se descontará del balance.');">
+                                <!-- Formulario para anular cobro con eliminación en cascada -->
+                                <form action="/pagos/eliminar/{{ p.id }}" method="POST" class="inline" onsubmit="return confirm('¿Seguro que deseas anular este cobro? Se descontará del balance y vencerá la cuota del socio.');">
                                     <button type="submit" class="bg-rose-950/60 hover:bg-rose-900 border border-rose-800 text-rose-400 text-xs px-2.5 py-1 rounded-lg font-bold transition">
                                         🗑️ Anular
                                     </button>

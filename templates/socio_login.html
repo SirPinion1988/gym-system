@@ -3,34 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Acceso de Socios | Credencial Digital</title>
+    <title>Portal del Socio | {{ gym_nombre }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-slate-950 text-slate-100 flex items-center justify-center min-h-screen p-4">
-    <div class="bg-slate-900 border border-slate-800 p-8 rounded-2xl w-full max-w-sm shadow-2xl text-center">
-        <img src="/static/img/logo.png" alt="Logo" class="w-16 h-16 mx-auto mb-3 object-contain" onerror="this.src='https://via.placeholder.com/60?text=GYM'">
-        <h1 class="text-xl font-bold text-white">Mi Credencial Digital</h1>
-        <p class="text-xs text-slate-400 mb-6">Ingresa tu DNI y Correo para ver tu QR de acceso</p>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-center items-center p-4">
+    <div class="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl space-y-6">
+        <div class="text-center space-y-2">
+            <div class="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 mx-auto flex items-center justify-center font-black text-emerald-400 text-xl">
+                📱
+            </div>
+            <h1 class="text-xl font-black text-white">{{ gym_nombre }}</h1>
+            <p class="text-xs text-slate-400">Ingresa tus datos para abrir tu credencial y QR</p>
+        </div>
 
         {% if error %}
-        <div class="bg-red-500/10 border border-red-500 text-red-400 p-3 rounded-lg text-xs mb-4 text-center">
+        <div class="bg-rose-950/60 border border-rose-800 text-rose-300 text-xs p-3 rounded-xl text-center">
             {{ error }}
         </div>
         {% endif %}
 
-        <form action="/socio/login" method="POST" class="space-y-4 text-left">
+        <form action="/login/socio" method="POST" class="space-y-4">
             <div>
-                <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">DNI</label>
-                <input type="text" name="dni" required placeholder="Ej: 38123456" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white focus:outline-none focus:border-emerald-500">
+                <label class="block text-xs text-slate-400 mb-1 font-semibold">Número de DNI</label>
+                <input type="text" name="dni" required placeholder="Sin puntos (ej: 38450123)" autofocus class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-emerald-500 font-mono">
             </div>
             <div>
-                <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Correo Electrónico</label>
-                <input type="email" name="email" required placeholder="tu@email.com" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white focus:outline-none focus:border-emerald-500">
+                <label class="block text-xs text-slate-400 mb-1 font-semibold">Correo Electrónico Registrado</label>
+                <input type="email" name="email" required placeholder="tu@correo.com" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-emerald-500">
             </div>
-            <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-600 font-bold py-3 rounded-lg text-white transition text-sm">
-                Acceder a mi QR
+            <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 rounded-xl text-sm transition shadow-lg shadow-emerald-500/20">
+                Abrir Mi Credencial Digital
             </button>
         </form>
+
+        <div class="text-center pt-2 border-t border-slate-800">
+            <a href="/" class="text-xs text-slate-400 hover:text-white transition">&larr; Volver al portal general</a>
+        </div>
     </div>
 </body>
 </html>

@@ -3,113 +3,94 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Acceso al Sistema | GymPro</title>
+    <title>Acceso al Sistema | {{ gym_nombre }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex items-center justify-center p-4">
-    <div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl">
-        <!-- Contenedor del Logo -->
-        <div class="text-center mb-6">
-            <div class="inline-block mb-3">
-                <img src="/static/logo.png" onerror="this.style.display='none'; document.getElementById('logo-fallback').style.display='inline-flex';" class="h-16 max-w-full mx-auto object-contain" alt="Logo">
-                <div id="logo-fallback" class="hidden items-center justify-center w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 font-black text-xl">
-                    GP
-                </div>
-            </div>
-            <h1 class="text-2xl font-black text-white tracking-tight">Gym<span class="text-emerald-400">Pro</span></h1>
-            <p class="text-xs text-slate-400">Portal de Gestión y Acceso de Socios</p>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-center items-center p-4">
+
+    <div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl space-y-6">
+        <!-- Logotipo y Encabezado Comercial -->
+        <div class="text-center space-y-2">
+            <div class="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 mx-auto flex items-center justify-center font-black text-emerald-400 text-xl">GP</div>
+            <h1 class="text-2xl font-black text-white tracking-tight">{{ gym_nombre }}</h1>
+            <p class="text-xs text-slate-400">Portal de Acceso y Gestión Integral</p>
         </div>
 
-        <!-- Selector de Pestañas -->
-        <div class="grid grid-cols-2 gap-2 bg-slate-950 p-1.5 rounded-2xl border border-slate-800 mb-6">
-            <button id="tab-socio" onclick="mostrarPestana('socio')" class="py-2 rounded-xl text-xs font-bold transition bg-emerald-500 text-white shadow-md">
-                👤 Soy Socio
+        <!-- Selector de Modo: Socio o Personal -->
+        <div class="grid grid-cols-2 gap-2 bg-slate-950 p-1.5 rounded-2xl border border-slate-800 text-center text-xs font-bold">
+            <button id="tab-socio" onclick="mostrarLogin('socio')" class="py-2.5 rounded-xl transition bg-emerald-500 text-white shadow-md">
+                📱 Soy Socio
             </button>
-            <button id="tab-admin" onclick="mostrarPestana('admin')" class="py-2 rounded-xl text-xs font-bold transition text-slate-400 hover:text-white">
+            <button id="tab-admin" onclick="mostrarLogin('admin')" class="py-2.5 rounded-xl transition text-slate-400 hover:text-white">
                 🔐 Personal / Admin
             </button>
         </div>
 
-        <!-- Formulario Socios -->
-        <div id="form-socio" class="space-y-4">
-            <div class="text-left mb-2">
-                <h2 class="text-sm font-bold text-white">Credencial Digital del Socio</h2>
-                <p class="text-[11px] text-slate-400">Ingresa tu documento y correo registrado para ver tu QR y estado de cuota.</p>
-            </div>
-
-            {% if error_socio %}
-            <div class="bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs p-3 rounded-xl text-center">
-                {{ error_socio }}
-            </div>
-            {% endif %}
-
+        <!-- FORMULARIO 1: INGRESO DEL SOCIO A SU CREDENCIAL DIGITAL -->
+        <div id="box-socio" class="space-y-4">
             <form action="/login/socio" method="POST" class="space-y-3">
+                {% if error_socio %}
+                <div class="bg-rose-950/60 border border-rose-800 text-rose-300 text-xs p-3 rounded-xl">
+                    {{ error_socio }}
+                </div>
+                {% endif %}
                 <div>
-                    <label class="block text-xs text-slate-400 mb-1">DNI (Sin puntos ni espacios)</label>
-                    <input type="text" name="dni" required placeholder="Ej: 38450123" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500">
+                    <label class="block text-xs text-slate-400 mb-1 font-semibold">Número de DNI</label>
+                    <input type="text" name="dni" required placeholder="Ej: 38450123" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-emerald-500 font-mono">
                 </div>
                 <div>
-                    <label class="block text-xs text-slate-400 mb-1">Correo Electrónico</label>
-                    <input type="email" name="email" required placeholder="tuemail@ejemplo.com" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500">
+                    <label class="block text-xs text-slate-400 mb-1 font-semibold">Correo Electrónico Registrado</label>
+                    <input type="email" name="email" required placeholder="tu@email.com" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-emerald-500">
                 </div>
                 <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 rounded-xl text-sm transition shadow-lg shadow-emerald-500/20">
-                    Ingresar a mi Credencial
+                    Abrir Mi Credencial y QR
                 </button>
             </form>
         </div>
 
-        <!-- Formulario Administración -->
-        <div id="form-admin" class="space-y-4 hidden">
-            <div class="text-left mb-2">
-                <h2 class="text-sm font-bold text-white">Ingreso de Personal</h2>
-                <p class="text-[11px] text-slate-400">Acceso a recepción, caja, socios y control administrativo.</p>
-            </div>
-
-            {% if error_admin %}
-            <div class="bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs p-3 rounded-xl text-center">
-                {{ error_admin }}
-            </div>
-            {% endif %}
-
+        <!-- FORMULARIO 2: INGRESO DEL PERSONAL Y ADMINISTRADORES -->
+        <div id="box-admin" class="space-y-4 hidden">
             <form action="/login/admin" method="POST" class="space-y-3">
+                {% if error_admin %}
+                <div class="bg-rose-950/60 border border-rose-800 text-rose-300 text-xs p-3 rounded-xl">
+                    {{ error_admin }}
+                </div>
+                {% endif %}
                 <div>
-                    <label class="block text-xs text-slate-400 mb-1">Nombre de Usuario</label>
-                    <input type="text" name="username" required placeholder="Usuario" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500">
+                    <label class="block text-xs text-slate-400 mb-1 font-semibold">Usuario de Operador</label>
+                    <input type="text" name="username" required placeholder="admin" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-indigo-500">
                 </div>
                 <div>
-                    <label class="block text-xs text-slate-400 mb-1">Contraseña</label>
-                    <input type="password" name="password" required placeholder="••••••••" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500">
+                    <label class="block text-xs text-slate-400 mb-1 font-semibold">Contraseña</label>
+                    <input type="password" name="password" required placeholder="••••••••" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-indigo-500">
                 </div>
                 <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl text-sm transition shadow-lg shadow-indigo-600/20">
-                    Iniciar Sesión en Panel
+                    Iniciar Sesión en Administración
                 </button>
             </form>
         </div>
     </div>
 
     <script>
-        function mostrarPestana(tipo) {
-            const formSocio = document.getElementById('form-socio');
-            const formAdmin = document.getElementById('form-admin');
+        // Alterna entre la vista de socio y la de operador del gimnasio
+        function mostrarLogin(modo) {
+            const boxSocio = document.getElementById('box-socio');
+            const boxAdmin = document.getElementById('box-admin');
             const tabSocio = document.getElementById('tab-socio');
             const tabAdmin = document.getElementById('tab-admin');
 
-            if (tipo === 'socio') {
-                formSocio.classList.remove('hidden');
-                formAdmin.classList.add('hidden');
-                tabSocio.className = "py-2 rounded-xl text-xs font-bold transition bg-emerald-500 text-white shadow-md";
-                tabAdmin.className = "py-2 rounded-xl text-xs font-bold transition text-slate-400 hover:text-white";
+            if (modo === 'socio') {
+                boxSocio.classList.remove('hidden');
+                boxAdmin.classList.add('hidden');
+                tabSocio.className = "py-2.5 rounded-xl transition bg-emerald-500 text-white shadow-md";
+                tabAdmin.className = "py-2.5 rounded-xl transition text-slate-400 hover:text-white";
             } else {
-                formAdmin.classList.remove('hidden');
-                formSocio.classList.add('hidden');
-                tabAdmin.className = "py-2 rounded-xl text-xs font-bold transition bg-indigo-600 text-white shadow-md";
-                tabSocio.className = "py-2 rounded-xl text-xs font-bold transition text-slate-400 hover:text-white";
+                boxAdmin.classList.remove('hidden');
+                boxSocio.classList.add('hidden');
+                tabAdmin.className = "py-2.5 rounded-xl transition bg-indigo-600 text-white shadow-md";
+                tabSocio.className = "py-2.5 rounded-xl transition text-slate-400 hover:text-white";
             }
         }
-
-        {% if error_admin %}
-            mostrarPestana('admin');
-        {% endif %}
     </script>
 </body>
 </html>

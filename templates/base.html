@@ -3,38 +3,60 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gym Management System</title>
+    <title>{% block title %}{{ gym_nombre }}{% endblock %}</title>
+    <!-- Framework Tailwind CSS cargado por CDN para estilos rápidos y responsivos -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="/static/css/styles.css">
+    {% block extra_head %}{% endblock %}
 </head>
-<body class="bg-slate-900 text-slate-100 flex min-h-screen">
-    {% if user %}
-    <!-- Sidebar -->
-    <aside class="w-64 bg-slate-950 p-6 flex flex-col justify-between border-r border-slate-800">
-        <div>
-            <div class="flex items-center space-x-3 mb-8">
-                <img src="/static/img/logo.png" alt="Logo" class="w-10 h-10 object-contain" onerror="this.src='https://via.placeholder.com/40?text=GYM'">
-                <div>
-                    <h1 class="font-bold text-lg leading-none">GYM PRO</h1>
-                    <span class="text-xs text-emerald-400 font-semibold">{{ user.rol }}</span>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
+
+    <!-- ========================================================== -->
+    <!-- NAVEGACIÓN GLOBAL COMPARTIDA                               -->
+    <!-- ========================================================== -->
+    <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between sticky top-0 z-40">
+        <div class="flex items-center space-x-6">
+            <div class="flex items-center space-x-2">
+                <!-- Icono de marca -->
+                <div class="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center font-black text-emerald-400 text-sm">
+                    GP
                 </div>
+                <span class="text-xl font-bold tracking-tight text-white">{{ gym_nombre }}</span>
             </div>
-            <nav class="space-y-2">
-                <a href="/dashboard" class="block px-4 py-2.5 rounded-lg hover:bg-slate-800 transition">📊 Dashboard</a>
-                <a href="/socios" class="block px-4 py-2.5 rounded-lg hover:bg-slate-800 transition">🏋️ Socios y QR</a>
-                <a href="/molinete" class="block px-4 py-2.5 rounded-lg hover:bg-slate-800 transition">🚧 Simulador Molinete</a>
+            <!-- Menú de escritorio -->
+            <nav class="hidden lg:flex space-x-4 text-sm font-medium">
+                <a href="/dashboard" class="text-slate-400 hover:text-white transition">Dashboard</a>
+                <a href="/socios" class="text-slate-400 hover:text-white transition">Socios</a>
+                <a href="/rutinas" class="text-slate-400 hover:text-white transition">Rutinas</a>
+                <a href="/clases-profesores" class="text-slate-400 hover:text-white transition">Clases y Profes</a>
+                <a href="/caja-pagos" class="text-slate-400 hover:text-white transition">Caja / Cuotas</a>
+                <a href="/kiosco" class="text-slate-400 hover:text-white transition">Kiosco</a>
+                <a href="/balance" class="text-slate-400 hover:text-white transition">Balance & Reportes</a>
+                {% if user and user.rol == 'ADMIN' %}
+                <a href="/usuarios" class="text-slate-400 hover:text-white transition">Usuarios</a>
+                {% endif %}
+                <a href="/molinete" class="text-slate-400 hover:text-white transition">Molinete</a>
             </nav>
         </div>
-        <div>
-            <div class="text-xs text-slate-400 mb-2">Conectado: <b>{{ user.nombre }}</b></div>
-            <a href="/logout" class="block text-center py-2 bg-red-600/20 text-red-400 rounded-lg hover:bg-red-600/30 transition text-sm">Cerrar Sesión</a>
+        <div class="flex items-center space-x-4">
+            {% if user %}
+                <span class="text-xs text-slate-400 hidden sm:inline">{{ user.nombre }}</span>
+                <a href="/logout" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg text-rose-400 transition font-semibold">Cerrar Sesión</a>
+            {% else %}
+                <a href="/" class="text-xs bg-emerald-500 hover:bg-emerald-600 px-3 py-1.5 rounded-lg text-white font-bold transition">Ingresar</a>
+            {% endif %}
         </div>
-    </aside>
-    {% endif %}
+    </header>
 
-    <!-- Contenido Principal -->
-    <main class="flex-1 p-8 overflow-y-auto">
+    <!-- ÁREA DONDE CADA PÁGINA HIJA INYECTA SU CONTENIDO -->
+    <main class="flex-1 p-6 max-w-7xl mx-auto w-full">
         {% block content %}{% endblock %}
     </main>
+
+    <!-- PIE DE PÁGINA INSTITUCIONAL -->
+    <footer class="bg-slate-900/60 border-t border-slate-800/80 px-6 py-4 text-center text-xs text-slate-500">
+        {{ gym_nombre }} &bull; Sistema de Gestión y Molinete Autónomo
+    </footer>
+
+    {% block scripts %}{% endblock %}
 </body>
 </html>

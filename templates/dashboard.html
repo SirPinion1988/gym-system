@@ -7,15 +7,20 @@
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
-    <!-- Navbar Superior Completa -->
+    <!-- ========================================================== -->
+    <!-- BARRA DE NAVEGACIÓN SUPERIOR (NAVBAR)                        -->
+    <!-- ========================================================== -->
     <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between sticky top-0 z-40">
         <div class="flex items-center space-x-6">
             <div class="flex items-center space-x-2">
+                <!-- Logotipo / Insignia visual del gimnasio -->
                 <div class="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center font-black text-emerald-400 text-sm">
                     GP
                 </div>
+                <!-- Nombre comercial dinámico (inyectado desde EMPRESA_RAZON_SOCIAL) -->
                 <span class="text-xl font-bold tracking-tight text-white">{{ gym_nombre }}</span>
             </div>
+            <!-- Menú de enlaces principales para pantallas de escritorio -->
             <nav class="hidden lg:flex space-x-4 text-sm font-medium">
                 <a href="/dashboard" class="text-emerald-400 border-b-2 border-emerald-500 pb-1">Dashboard</a>
                 <a href="/socios" class="text-slate-400 hover:text-white transition">Socios</a>
@@ -24,6 +29,7 @@
                 <a href="/caja-pagos" class="text-slate-400 hover:text-white transition">Caja / Cuotas</a>
                 <a href="/kiosco" class="text-slate-400 hover:text-white transition">Kiosco</a>
                 <a href="/balance" class="text-slate-400 hover:text-white transition">Balance & Reportes</a>
+                <!-- Pestaña de usuarios visible únicamente para rol ADMIN -->
                 {% if user.rol == 'ADMIN' %}
                 <a href="/usuarios" class="text-slate-400 hover:text-white transition">Usuarios</a>
                 {% endif %}
@@ -38,7 +44,7 @@
         </div>
     </header>
 
-    <!-- Menú Responsive Móvil -->
+    <!-- Menú responsive horizontal para teléfonos móviles -->
     <nav class="lg:hidden bg-slate-900 border-b border-slate-800 px-4 py-2.5 flex overflow-x-auto space-x-4 text-xs font-medium">
         <a href="/dashboard" class="text-emerald-400 font-bold whitespace-nowrap">Dashboard</a>
         <a href="/socios" class="text-slate-400 whitespace-nowrap">Socios</a>
@@ -53,7 +59,7 @@
         <a href="/molinete" class="text-slate-400 whitespace-nowrap">Molinete</a>
     </nav>
 
-    <!-- Contenido Principal -->
+    <!-- CONTENIDO PRINCIPAL -->
     <main class="flex-1 p-6 max-w-7xl mx-auto w-full space-y-6">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
@@ -73,8 +79,11 @@
             </div>
         </div>
 
-        <!-- Tarjetas de Métricas -->
+        <!-- ========================================================== -->
+        <!-- TARJETAS DE MÉTRICAS GLOBALES (KPIs)                       -->
+        <!-- ========================================================== -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <!-- Total de socios registrados -->
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
                 <div class="flex justify-between items-center text-slate-400 mb-2">
                     <span class="text-xs uppercase font-bold tracking-wider">Socios Totales</span>
@@ -84,6 +93,7 @@
                 <div class="text-[11px] text-slate-500 mt-1">Registrados en el sistema</div>
             </div>
 
+            <!-- Socios con cuota al día -->
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
                 <div class="flex justify-between items-center text-emerald-400 mb-2">
                     <span class="text-xs uppercase font-bold tracking-wider">Cuotas al Día</span>
@@ -93,6 +103,7 @@
                 <div class="text-[11px] text-emerald-500/70 mt-1">Habilitados en molinete</div>
             </div>
 
+            <!-- Cantidad de profesores -->
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
                 <div class="flex justify-between items-center text-indigo-400 mb-2">
                     <span class="text-xs uppercase font-bold tracking-wider">Profesores</span>
@@ -102,6 +113,7 @@
                 <div class="text-[11px] text-slate-500 mt-1">Equipo de entrenadores</div>
             </div>
 
+            <!-- Cantidad de clases activas -->
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
                 <div class="flex justify-between items-center text-amber-400 mb-2">
                     <span class="text-xs uppercase font-bold tracking-wider">Clases Activas</span>
@@ -112,7 +124,7 @@
             </div>
         </div>
 
-        <!-- Módulos de Acceso Rápido -->
+        <!-- ACCESOS RÁPIDOS DESTACADOS -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <a href="/rutinas" class="bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-indigo-500/50 rounded-2xl p-4 transition group">
                 <div class="flex items-center space-x-3">
@@ -151,7 +163,9 @@
             </a>
         </div>
 
-        <!-- Tabla de Auditoría del Molinete -->
+        <!-- ========================================================== -->
+        <!-- TABLA DE AUDITORÍA EN TIEMPO REAL: ÚLTIMOS ACCESOS         -->
+        <!-- ========================================================== -->
         <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
             <div class="flex justify-between items-center mb-4">
                 <div>

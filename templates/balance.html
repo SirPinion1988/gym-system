@@ -19,6 +19,7 @@
             <nav class="hidden lg:flex space-x-4 text-sm font-medium">
                 <a href="/dashboard" class="text-slate-400 hover:text-white transition">Dashboard</a>
                 <a href="/socios" class="text-slate-400 hover:text-white transition">Socios</a>
+                <a href="/rutinas" class="text-slate-400 hover:text-white transition">Rutinas</a>
                 <a href="/clases-profesores" class="text-slate-400 hover:text-white transition">Clases y Profes</a>
                 <a href="/caja-pagos" class="text-slate-400 hover:text-white transition">Caja / Cuotas</a>
                 <a href="/kiosco" class="text-slate-400 hover:text-white transition">Kiosco</a>
@@ -38,6 +39,7 @@
                 <h1 class="text-2xl font-black text-white">Balance Financiero y Contable</h1>
                 <p class="text-xs text-slate-400">Control de ingresos brutos, egresos salariales y utilidad neta real.</p>
             </div>
+            <!-- BOTONES DE EXPORTACIÓN A CSV / EXCEL -->
             <div class="flex flex-wrap gap-2">
                 <a href="/exportar/pagos-csv" class="bg-emerald-600 hover:bg-emerald-500 px-3 py-2 rounded-xl text-xs font-bold text-white transition flex items-center gap-1.5 shadow-lg shadow-emerald-600/20">
                     📥 Cobros Cuotas (CSV)
@@ -51,7 +53,9 @@
             </div>
         </div>
 
-        <!-- Tarjetas del Estado Financiero -->
+        <!-- ========================================================== -->
+        <!-- TARJETAS CONTABLES: INGRESOS, SUELDOS Y UTILIDAD NETA      -->
+        <!-- ========================================================== -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
                 <span class="text-xs text-slate-400 uppercase font-bold tracking-wider">Ingresos Hoy</span>
@@ -85,8 +89,11 @@
             </div>
         </div>
 
+        <!-- ========================================================== -->
+        <!-- CONTROL DE MOROSIDAD Y RECORDATORIOS POR WHATSAPP          -->
+        <!-- ========================================================== -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <!-- PRÓXIMOS VENCIMIENTOS CON RECORDATORIO POR WHATSAPP -->
+            <!-- Vencimientos en los próximos 7 días con botón directo de WhatsApp -->
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-lg font-bold text-amber-400 flex items-center gap-2">
@@ -117,6 +124,7 @@
                                     {{ s.fecha_vencimiento_cuota.strftime('%d/%m/%Y') }}
                                 </td>
                                 <td class="p-3 text-right">
+                                    <!-- Abre WhatsApp Web / App con el mensaje y link oficial listos -->
                                     <a href="{{ item.whatsapp_url }}" target="_blank" class="bg-emerald-950/70 hover:bg-emerald-900 border border-emerald-800 text-emerald-400 text-xs px-2.5 py-1 rounded-lg font-bold transition inline-flex items-center gap-1 shadow-sm">
                                         <span>💬</span> Recordar
                                     </a>
@@ -130,7 +138,7 @@
                 </div>
             </div>
 
-            <!-- CUOTAS VENCIDAS -->
+            <!-- Cuotas Vencidas -->
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-lg font-bold text-rose-400 flex items-center gap-2">

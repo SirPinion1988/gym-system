@@ -35,7 +35,9 @@ app = FastAPI(title="Sistema de Gestión de Gimnasio - GymPro")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-GYM_NOMBRE = os.getenv("EMPRESA_RAZON_SOCIAL", "GymPro Fitness")
+# Cambia "DANCEBRI" por el nombre de tu gimnasio:
+
+GYM_NOMBRE = os.getenv("EMPRESA_RAZON_SOCIAL", "DANCEBRI")
 MP_ACCESS_TOKEN = os.getenv("MP_ACCESS_TOKEN", "TEST-0000000000000000-000000-000000-000000-000000-000000-000000000")
 mp_sdk = mercadopago.SDK(MP_ACCESS_TOKEN)
 APP_PUBLIC_URL = os.getenv("APP_PUBLIC_URL", "https://gimnasio-app-0qhn.onrender.com")
