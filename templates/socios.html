@@ -38,7 +38,7 @@
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
                 <h1 class="text-2xl font-black text-white">Padrón de Socios</h1>
-                <p class="text-xs text-slate-400">Control de asistencia, evolución física y gestión de cuotas.</p>
+                <p class="text-xs text-slate-400">Control de asistencia, certificados médicos, evolución y cuotas.</p>
             </div>
             <div class="flex gap-2">
                 <a href="/exportar/accesos-csv" class="bg-slate-800 hover:bg-slate-700 px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-200 transition flex items-center gap-2 border border-slate-700">
@@ -114,16 +114,30 @@
                                 <div class="text-[11px] text-slate-400 mt-1">Vence: {{ s.fecha_vencimiento_cuota.strftime('%d/%m/%Y') if s.fecha_vencimiento_cuota else 'Sin Cuota' }}</div>
                             </td>
 
+                            <!-- APTO MÉDICO CON BOTÓN PARA VER CERTIFICADO -->
                             <td class="p-4">
-                                {% if apto_valido %}
-                                    <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">Apto Vigente</span>
-                                    <div class="text-[11px] text-slate-400 mt-1">Vto: {{ s.apto_medico_vencimiento.strftime('%d/%m/%Y') }}</div>
-                                {% elif s.apto_medico_vencimiento %}
-                                    <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30">Apto Vencido</span>
-                                    <div class="text-[11px] text-slate-400 mt-1">Caducó: {{ s.apto_medico_vencimiento.strftime('%d/%m/%Y') }}</div>
-                                {% else %}
-                                    <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-rose-500/10 text-rose-400 border border-rose-500/30">Sin Apto Médico</span>
-                                {% endif %}
+                                <div class="flex items-center gap-2">
+                                    {% if apto_valido %}
+                                        <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">Apto Vigente</span>
+                                    {% elif s.apto_medico_vencimiento %}
+                                        <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30">Apto Vencido</span>
+                                    {% else %}
+                                        <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-rose-500/10 text-rose-400 border border-rose-500/30">Sin Apto</span>
+                                    {% endif %}
+
+                                    {% if s.apto_medico_base64 %}
+                                    <button onclick="verCertificadoMedico({{ s.id }}, '{{ s.nombre }} {{ s.apellido }}')" class="text-[10px] bg-sky-950 text-sky-400 hover:bg-sky-900 border border-sky-800 px-2 py-0.5 rounded font-bold transition flex items-center gap-1" title="Ver foto del apto médico">
+                                        📄 Ver
+                                    </button>
+                                    {% endif %}
+                                </div>
+                                <div class="text-[11px] text-slate-400 mt-1">
+                                    {% if s.apto_medico_vencimiento %}
+                                        Vto: {{ s.apto_medico_vencimiento.strftime('%d/%m/%Y') }}
+                                    {% else %}
+                                        Falta presentar
+                                    {% endif %}
+                                </div>
                             </td>
 
                             <td class="p-4 text-center">
@@ -139,7 +153,6 @@
                             </td>
 
                             <td class="p-4 text-right space-x-1.5 whitespace-nowrap">
-                                <!-- BOTÓN DE EVOLUCIÓN FÍSICA -->
                                 <a href="/socios/evolucion/{{ s.id }}" class="bg-indigo-950/70 hover:bg-indigo-900 border border-indigo-800 text-indigo-300 px-2.5 py-1.5 rounded-lg text-xs font-bold transition inline-block" title="Medidas y progreso físico">
                                     📈 Medidas
                                 </a>
@@ -148,7 +161,7 @@
                                     📋 Accesos
                                 </button>
 
-                                <button onclick="abrirModalCobroMP({{ s.id }})" class="bg-sky-600 hover:bg-sky-500 px-2 py-1.5 rounded-lg text-xs font-bold text-white transition">
+                                <button onclick="abrirModalCobroMP({{ s.id }})" class="bg-sky-600 hover:bg-sky-500 px-2.5 py-1.5 rounded-lg text-xs font-bold text-white transition">
                                     📲 Link MP
                                 </button>
 
@@ -156,11 +169,11 @@
                                     QR
                                 </button>
 
-                                <button onclick="abrirModalEditar({{ s.id }}, '{{ s.nombre }}', '{{ s.apellido }}', '{{ s.dni }}', '{{ s.fecha_nacimiento.strftime('%Y-%m-%d') }}', '{{ s.celular }}', '{{ s.email }}', {{ s.plan_id or 'null' }}, '{{ s.apto_medico_realizacion.strftime('%Y-%m-%d') if s.apto_medico_realizacion else '' }}')" class="bg-slate-800 hover:bg-slate-700 px-2 py-1.5 rounded-lg text-xs font-semibold text-slate-200 transition">
+                                <button onclick="abrirModalEditar({{ s.id }}, '{{ s.nombre }}', '{{ s.apellido }}', '{{ s.dni }}', '{{ s.fecha_nacimiento.strftime('%Y-%m-%d') }}', '{{ s.celular }}', '{{ s.email }}', {{ s.plan_id or 'null' }}, '{{ s.apto_medico_realizacion.strftime('%Y-%m-%d') if s.apto_medico_realizacion else '' }}')" class="bg-slate-800 hover:bg-slate-700 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-200 transition">
                                     ✏️
                                 </button>
 
-                                <button onclick="abrirModalPermiso({{ s.id }}, '{{ s.nombre }} {{ s.apellido }}', {{ 'true' if s.bloqueado_manual else 'false' }}, '{{ s.habilitacion_manual_hasta.strftime('%Y-%m-%d') if s.habilitacion_manual_hasta else '' }}')" class="bg-slate-800 hover:bg-slate-700 px-2 py-1.5 rounded-lg text-xs font-semibold {% if s.bloqueado_manual %}text-rose-400{% else %}text-emerald-400{% endif %} transition">
+                                <button onclick="abrirModalPermiso({{ s.id }}, '{{ s.nombre }} {{ s.apellido }}', {{ 'true' if s.bloqueado_manual else 'false' }}, '{{ s.habilitacion_manual_hasta.strftime('%Y-%m-%d') if s.habilitacion_manual_hasta else '' }}')" class="bg-slate-800 hover:bg-slate-700 px-2.5 py-1.5 rounded-lg text-xs font-semibold {% if s.bloqueado_manual %}text-rose-400{% else %}text-emerald-400{% endif %} transition">
                                     🛡️
                                 </button>
                             </td>
@@ -174,29 +187,137 @@
         </div>
     </main>
 
-    <!-- Modales habituales de QR, Accesos, Editar y Crear -->
+    <!-- MODAL VISOR DEL CERTIFICADO MÉDICO -->
+    <div id="modal-visor-apto" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-xl rounded-3xl p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h3 class="font-bold text-lg text-white">Certificado Médico Oficial</h3>
+                    <p id="visor-apto-socio" class="text-xs text-slate-400">Socio: -</p>
+                </div>
+                <button onclick="document.getElementById('modal-visor-apto').classList.add('hidden')" class="text-slate-400 hover:text-white text-2xl font-bold">&times;</button>
+            </div>
+            <div class="flex-1 overflow-auto bg-slate-950 p-2 rounded-2xl border border-slate-800 text-center flex items-center justify-center min-h-[300px]">
+                <img id="visor-apto-img" src="" alt="Certificado Apto Médico" class="max-w-full max-h-[70vh] rounded-xl object-contain shadow-lg">
+            </div>
+            <div class="flex justify-between items-center pt-2">
+                <a id="visor-apto-download" href="#" download="Apto_Medico.jpg" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-4 py-2 rounded-xl font-bold transition flex items-center gap-1.5">
+                    📥 Descargar Archivo
+                </a>
+                <button onclick="document.getElementById('modal-visor-apto').classList.add('hidden')" class="px-5 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold transition">
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL CREAR SOCIO (CON FOTO Y ARCHIVO DE APTO MÉDICO) -->
+    <div id="modal-crear" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto space-y-4">
+            <div class="flex justify-between items-center">
+                <h2 class="text-lg font-bold text-white">Alta de Nuevo Socio</h2>
+                <button onclick="document.getElementById('modal-crear').classList.add('hidden')" class="text-slate-400 hover:text-white text-xl">&times;</button>
+            </div>
+            <form action="/socios/crear" method="POST" enctype="multipart/form-data" class="space-y-3">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1 font-semibold">Foto de Perfil</label>
+                        <input type="file" name="foto" accept="image/*" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-slate-300">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1 font-semibold text-emerald-400">📄 Foto Apto Médico</label>
+                        <input type="file" name="foto_apto" accept="image/*" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-slate-300">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <input type="text" name="nombre" placeholder="Nombre" required class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-sm text-white">
+                    <input type="text" name="apellido" placeholder="Apellido" required class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-sm text-white">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <input type="text" name="dni" placeholder="DNI" required class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-sm text-white">
+                    <div>
+                        <label class="block text-[10px] text-slate-400 mb-0.5">Fecha Nacimiento</label>
+                        <input type="date" name="fecha_nacimiento" required class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-sm text-white">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <input type="text" name="celular" placeholder="Celular (WhatsApp)" required class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-sm text-white">
+                    <input type="email" name="email" placeholder="Correo Electrónico" required class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-sm text-white">
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Plan de Cuota</label>
+                    <select name="plan_id" required class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-sm text-white">
+                        {% for p in planes %}<option value="{{ p.id }}">{{ p.nombre }} - ${{ "%.2f"|format(p.precio) }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Fecha de Emisión del Apto Médico (Dura 1 año)</label>
+                    <input type="date" name="apto_medico_realizacion" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-sm text-white">
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="document.getElementById('modal-crear').classList.add('hidden')" class="px-4 py-2 bg-slate-800 rounded-xl text-xs">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 rounded-xl text-xs font-bold text-white shadow-lg shadow-emerald-500/20">Guardar Socio</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL EDITAR SOCIO (CON ACTUALIZACIÓN DE FOTO Y APTO MÉDICO) -->
+    <div id="modal-editar" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto space-y-4">
+            <h2 class="text-lg font-bold text-white">Modificar Datos del Socio</h2>
+            <form id="form-editar" action="" method="POST" enctype="multipart/form-data" class="space-y-3">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1 font-semibold">Actualizar Foto Perfil</label>
+                        <input type="file" name="foto" accept="image/*" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-slate-300">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1 font-semibold text-emerald-400">📄 Subir Nuevo Apto Médico</label>
+                        <input type="file" name="foto_apto" accept="image/*" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-slate-300">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <input type="text" id="edit-nombre" name="nombre" required class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-sm text-white">
+                    <input type="text" id="edit-apellido" name="apellido" required class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-sm text-white">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <input type="text" id="edit-dni" name="dni" required class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-sm text-white">
+                    <input type="date" id="edit-nac" name="fecha_nacimiento" required class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-sm text-white">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <input type="text" id="edit-cel" name="celular" required class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-sm text-white">
+                    <input type="email" id="edit-email" name="email" required class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-sm text-white">
+                </div>
+                <select id="edit-plan" name="plan_id" required class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-sm text-white">
+                    {% for p in planes %}<option value="{{ p.id }}">{{ p.nombre }}</option>{% endfor %}
+                </select>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Fecha Emisión de Apto Médico</label>
+                    <input type="date" id="edit-apto" name="apto_medico_realizacion" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-sm text-white">
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="document.getElementById('modal-editar').classList.add('hidden')" class="px-4 py-2 bg-slate-800 rounded-xl text-xs">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-xs font-bold text-white">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modales adicionales (Historial Accesos, QR, Permisos, MP) -->
     <div id="modal-historial-accesos" class="hidden fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-3xl p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
             <div class="flex justify-between items-start">
-                <div class="flex items-center space-x-3">
-                    <div id="hist-foto-container"></div>
-                    <div>
-                        <h3 id="hist-socio-nombre" class="font-bold text-lg text-white">Historial de Accesos</h3>
-                        <p id="hist-socio-dni" class="text-xs text-slate-400 font-mono">DNI: -</p>
-                    </div>
-                </div>
+                <div class="flex items-center space-x-3"><div id="hist-foto-container"></div><div><h3 id="hist-socio-nombre" class="font-bold text-lg text-white">Historial de Accesos</h3><p id="hist-socio-dni" class="text-xs text-slate-400 font-mono">DNI: -</p></div></div>
                 <button onclick="document.getElementById('modal-historial-accesos').classList.add('hidden')" class="text-slate-400 hover:text-white text-2xl font-bold">&times;</button>
             </div>
             <div class="grid grid-cols-2 gap-3 bg-slate-950 p-3 rounded-2xl border border-slate-800">
                 <div class="text-center border-r border-slate-800"><span class="text-[10px] uppercase font-bold text-slate-400">Ingresos Mes</span><div id="hist-accesos-mes" class="text-2xl font-black text-emerald-400">0</div></div>
                 <div class="text-center"><span class="text-[10px] uppercase font-bold text-slate-400">Total Histórico</span><div id="hist-total-registros" class="text-2xl font-black text-indigo-400">0</div></div>
             </div>
-            <div class="overflow-y-auto flex-1 border border-slate-800 rounded-2xl">
-                <table class="w-full text-left text-xs">
-                    <thead class="bg-slate-950 text-slate-400 uppercase font-semibold sticky top-0 border-b border-slate-800"><tr><th class="p-3">Fecha y Hora</th><th class="p-3 text-center">Estado</th><th class="p-3">Detalle</th></tr></thead>
-                    <tbody id="hist-tbody" class="divide-y divide-slate-800"></tbody>
-                </table>
-            </div>
+            <div class="overflow-y-auto flex-1 border border-slate-800 rounded-2xl"><table class="w-full text-left text-xs"><thead class="bg-slate-950 text-slate-400 uppercase font-semibold sticky top-0 border-b border-slate-800"><tr><th class="p-3">Fecha y Hora</th><th class="p-3 text-center">Estado</th><th class="p-3">Detalle</th></tr></thead><tbody id="hist-tbody" class="divide-y divide-slate-800"></tbody></table></div>
             <div class="pt-2 text-right"><button onclick="document.getElementById('modal-historial-accesos').classList.add('hidden')" class="px-5 py-2 bg-slate-800 rounded-xl text-xs font-bold">Cerrar</button></div>
         </div>
     </div>
@@ -204,96 +325,23 @@
     <div id="modal-mp-link" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-4">
             <div class="flex justify-between items-center"><h3 class="font-bold text-lg text-white">Link de Pago MP</h3><button onclick="document.getElementById('modal-mp-link').classList.add('hidden')" class="text-slate-400 hover:text-white text-xl">&times;</button></div>
-            <div class="bg-slate-950 border border-slate-800 rounded-xl p-3 space-y-1">
-                <div class="flex justify-between text-xs"><span class="text-slate-400">Plan:</span><span id="mp-plan-nombre" class="font-bold text-white">-</span></div>
-                <div class="flex justify-between text-xs"><span class="text-slate-400">Monto:</span><span id="mp-plan-monto" class="font-mono font-bold text-emerald-400">-</span></div>
-            </div>
+            <div class="bg-slate-950 border border-slate-800 rounded-xl p-3 space-y-1"><div class="flex justify-between text-xs"><span class="text-slate-400">Plan:</span><span id="mp-plan-nombre" class="font-bold text-white">-</span></div><div class="flex justify-between text-xs"><span class="text-slate-400">Monto:</span><span id="mp-plan-monto" class="font-mono font-bold text-emerald-400">-</span></div></div>
             <div class="flex gap-2"><input type="text" id="mp-input-url" readonly class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs font-mono text-slate-300"><button onclick="copiarLinkMP()" class="bg-slate-800 px-3 py-2 rounded-lg text-xs font-bold text-white">📋 Copiar</button></div>
             <a id="mp-btn-whatsapp" href="#" target="_blank" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2"><span>💬</span> Enviar por WhatsApp Directo</a>
         </div>
     </div>
 
-    <!-- Modal Crear -->
-    <div id="modal-crear" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div class="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-2xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div class="flex justify-between items-center mb-4"><h2 class="text-lg font-bold text-white">Alta de Nuevo Socio</h2><button onclick="document.getElementById('modal-crear').classList.add('hidden')" class="text-slate-400 hover:text-white text-xl">&times;</button></div>
-            <form action="/socios/crear" method="POST" enctype="multipart/form-data" class="space-y-3">
-                <input type="file" name="foto" accept="image/*" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-slate-300">
-                <div class="grid grid-cols-2 gap-3">
-                    <input type="text" name="nombre" placeholder="Nombre" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-white">
-                    <input type="text" name="apellido" placeholder="Apellido" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-white">
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <input type="text" name="dni" placeholder="DNI" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-white">
-                    <input type="date" name="fecha_nacimiento" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-white">
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <input type="text" name="celular" placeholder="Celular" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-white">
-                    <input type="email" name="email" placeholder="Email" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-white">
-                </div>
-                <select name="plan_id" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-white">
-                    {% for p in planes %}<option value="{{ p.id }}">{{ p.nombre }} - ${{ "%.2f"|format(p.precio) }}</option>{% endfor %}
-                </select>
-                <input type="date" name="apto_medico_realizacion" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-white">
-                <div class="flex justify-end gap-2 pt-2">
-                    <button type="button" onclick="document.getElementById('modal-crear').classList.add('hidden')" class="px-4 py-2 bg-slate-800 rounded-lg text-xs">Cancelar</button>
-                    <button type="submit" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 rounded-lg text-xs font-bold text-white">Guardar</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Modal Editar -->
-    <div id="modal-editar" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div class="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-2xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <h2 class="text-lg font-bold text-white mb-4">Modificar Datos del Socio</h2>
-            <form id="form-editar" action="" method="POST" enctype="multipart/form-data" class="space-y-3">
-                <input type="file" name="foto" accept="image/*" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-slate-300">
-                <div class="grid grid-cols-2 gap-3">
-                    <input type="text" id="edit-nombre" name="nombre" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-white">
-                    <input type="text" id="edit-apellido" name="apellido" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-white">
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <input type="text" id="edit-dni" name="dni" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-white">
-                    <input type="date" id="edit-nac" name="fecha_nacimiento" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-white">
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <input type="text" id="edit-cel" name="celular" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-white">
-                    <input type="email" id="edit-email" name="email" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-white">
-                </div>
-                <select id="edit-plan" name="plan_id" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-white">
-                    {% for p in planes %}<option value="{{ p.id }}">{{ p.nombre }}</option>{% endfor %}
-                </select>
-                <input type="date" id="edit-apto" name="apto_medico_realizacion" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-white">
-                <div class="flex justify-end gap-2 pt-2">
-                    <button type="button" onclick="document.getElementById('modal-editar').classList.add('hidden')" class="px-4 py-2 bg-slate-800 rounded-lg text-xs">Cancelar</button>
-                    <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-xs font-bold text-white">Guardar Cambios</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Modal Permisos -->
     <div id="modal-permiso" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-3">
             <h3 class="font-bold text-lg text-white">Permisos de Acceso</h3>
             <form id="form-permiso" action="" method="POST" class="space-y-3">
-                <div class="grid grid-cols-2 gap-2">
-                    <label class="p-2 bg-slate-950 border border-slate-800 rounded-xl cursor-pointer"><input type="radio" name="accion" value="habilitar" checked> <span class="text-xs font-bold text-emerald-400">Habilitar</span></label>
-                    <label class="p-2 bg-slate-950 border border-slate-800 rounded-xl cursor-pointer"><input type="radio" name="accion" value="bloquear"> <span class="text-xs font-bold text-rose-400">Bloquear</span></label>
-                </div>
-                <select name="dias_duracion" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-white">
-                    <option value="1">1 día</option><option value="3">3 días</option><option value="7">7 días</option><option value="30">30 días</option>
-                </select>
-                <div class="flex justify-end gap-2 pt-2">
-                    <button type="button" onclick="document.getElementById('modal-permiso').classList.add('hidden')" class="px-4 py-2 bg-slate-800 rounded-lg text-xs">Cancelar</button>
-                    <button type="submit" class="px-4 py-2 bg-indigo-600 rounded-lg text-xs font-bold text-white">Aplicar</button>
-                </div>
+                <div class="grid grid-cols-2 gap-2"><label class="p-2 bg-slate-950 border border-slate-800 rounded-xl cursor-pointer"><input type="radio" name="accion" value="habilitar" checked> <span class="text-xs font-bold text-emerald-400">Habilitar</span></label><label class="p-2 bg-slate-950 border border-slate-800 rounded-xl cursor-pointer"><input type="radio" name="accion" value="bloquear"> <span class="text-xs font-bold text-rose-400">Bloquear</span></label></div>
+                <select name="dias_duracion" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-white"><option value="1">1 día</option><option value="3">3 días</option><option value="7">7 días</option><option value="30">30 días</option></select>
+                <div class="flex justify-end gap-2 pt-2"><button type="button" onclick="document.getElementById('modal-permiso').classList.add('hidden')" class="px-4 py-2 bg-slate-800 rounded-lg text-xs">Cancelar</button><button type="submit" class="px-4 py-2 bg-indigo-600 rounded-lg text-xs font-bold text-white">Aplicar</button></div>
             </form>
         </div>
     </div>
 
-    <!-- Modal QR -->
     <div id="modal-qr" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 w-full max-w-sm rounded-2xl p-6 text-center shadow-2xl space-y-3">
             <h3 id="qr-socio-nombre" class="font-bold text-white text-base">Cargando...</h3>
@@ -303,6 +351,26 @@
     </div>
 
     <script>
+        async function verCertificadoMedico(socioId, nombreSocio) {
+            try {
+                const res = await fetch('/api/socios/' + socioId + '/apto-medico');
+                if (!res.ok) throw new Error('No se encontró el certificado.');
+                const data = await res.json();
+                
+                if (!data.apto_base64) {
+                    alert('El socio no tiene una imagen de certificado adjunta.');
+                    return;
+                }
+
+                document.getElementById('visor-apto-socio').innerText = 'Socio: ' + nombreSocio;
+                document.getElementById('visor-apto-img').src = data.apto_base64;
+                document.getElementById('visor-apto-download').href = data.apto_base64;
+                document.getElementById('modal-visor-apto').classList.remove('hidden');
+            } catch (err) {
+                alert('No se pudo cargar el certificado médico.');
+            }
+        }
+
         async function verHistorialAccesos(socioId) {
             try {
                 const res = await fetch('/api/socios/' + socioId + '/accesos');

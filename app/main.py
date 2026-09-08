@@ -8,6 +8,7 @@ import urllib.parse
 from pathlib import Path
 from datetime import date, datetime, timedelta
 from typing import Optional
+from PIL import Image
 
 from fastapi import FastAPI, Depends, Request, Form, HTTPException, status, Response, BackgroundTasks, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response
@@ -28,16 +29,14 @@ from . import models, auth, billing
 
 Base.metadata.create_all(bind=engine)
 
-# Inicializar Limitador de Peticiones
 limiter = Limiter(key_func=get_remote_address)
 
 app = FastAPI(title="Sistema de Gestión de Gimnasio - GymPro")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# Variables de entorno y configuración
 GYM_NOMBRE = os.getenv("EMPRESA_RAZON_SOCIAL", "GymPro Fitness")
-MP_ACCESS_TOKEN = os.getenv("MP_ACCESS_TOKEN", "TEST-0000000000000000-000000-000000-000000-0000000000000000-000000000")
+MP_ACCESS_TOKEN = os.getenv("MP_ACCESS_TOKEN", "TEST-0000000000000000-000000-000000-000000-000000-000000-000000000")
 mp_sdk = mercadopago.SDK(MP_ACCESS_TOKEN)
 APP_PUBLIC_URL = os.getenv("APP_PUBLIC_URL", "https://gimnasio-app-0qhn.onrender.com")
 
@@ -55,6 +54,32 @@ STATIC_DIR.mkdir(parents=True, exist_ok=True)
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
+
+
+def optimizar_imagen(archivo_bytes: bytes, max_ancho: int = 1000, calidad: int = 70) -> Optional[str]:
+    """
+    Comprime y redimensiona cualquier imagen para que pese menos de 100 KB en Base64.
+    Evita saturar la base de datos de Supabase.
+    """
+    if not archivo_bytes:
+        return None
+    try:
+        img = Image.open(io.BytesIO(archivo_bytes))
+        if img.mode in ("RGBA", "P"):
+            img = img.convert("RGB")
+        
+        if img.width > max_ancho:
+            ratio = max_ancho / float(img.width)
+            alto = int(float(img.height) * float(ratio))
+            img = img.resize((max_ancho, alto), Image.Resampling.LANCZOS)
+
+        buffer = io.BytesIO()
+        img.save(buffer, format="JPEG", quality=calidad, optimize=True)
+        b64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+        return f"data:image/jpeg;base64,{b64}"
+    except Exception as e:
+        print(f"Error optimizando imagen: {e}")
+        return None
 
 
 def calcular_edad(fecha_nac: date) -> int:
@@ -79,13 +104,8 @@ def generar_qr_base64(texto: str) -> str:
     return base64.b64encode(buffer.getvalue()).decode()
 
 
-# --- ENDPOINT DE SALUD / KEEP-ALIVE (NO CONSUME BASE DE DATOS) ---
 @app.get("/health")
 def health_check():
-    """
-    Ruta ultraliviana para UptimeRobot / Monitoreo.
-    Responde en ~2ms y mantiene el servidor de Render activo sin sobrecargar Supabase.
-    """
     return {
         "status": "healthy",
         "app": GYM_NOMBRE,
@@ -194,7 +214,7 @@ def login_view(request: Request):
 
 
 @app.post("/login/admin")
-@limiter.limit("5/minute")  # Protección contra ataques de fuerza bruta
+@limiter.limit("5/minute")
 def login_admin_action(
     request: Request,
     response: Response,
@@ -365,6 +385,7 @@ async def crear_socio(
     plan_id: Optional[int] = Form(None),
     apto_medico_realizacion: Optional[str] = Form(None),
     foto: Optional[UploadFile] = File(None),
+    foto_apto: Optional[UploadFile] = File(None),
     user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -382,13 +403,17 @@ async def crear_socio(
 
     token_qr = f"GYM-{dni.strip()}-{uuid.uuid4().hex[:8]}"
 
+    # Procesar y comprimir foto de perfil
     foto_b64 = None
     if foto and foto.filename:
         contenido = await foto.read()
-        if contenido:
-            tipo_mime = foto.content_type or "image/jpeg"
-            b64_str = base64.b64encode(contenido).decode('utf-8')
-            foto_b64 = f"data:{tipo_mime};base64,{b64_str}"
+        foto_b64 = optimizar_imagen(contenido, max_ancho=500, calidad=75)
+
+    # Procesar y comprimir imagen del Apto Médico
+    apto_b64 = None
+    if foto_apto and foto_apto.filename:
+        contenido_apto = await foto_apto.read()
+        apto_b64 = optimizar_imagen(contenido_apto, max_ancho=1000, calidad=70)
 
     nuevo_socio = models.Socio(
         dni=dni.strip(),
@@ -400,6 +425,7 @@ async def crear_socio(
         email=email.strip().lower(),
         plan_id=plan_id,
         foto_base64=foto_b64,
+        apto_medico_base64=apto_b64,
         apto_medico_realizacion=f_realizacion,
         apto_medico_vencimiento=f_vto_apto,
         qr_token=token_qr,
@@ -424,6 +450,7 @@ async def editar_socio(
     plan_id: Optional[int] = Form(None),
     apto_medico_realizacion: Optional[str] = Form(None),
     foto: Optional[UploadFile] = File(None),
+    foto_apto: Optional[UploadFile] = File(None),
     user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -446,10 +473,15 @@ async def editar_socio(
 
     if foto and foto.filename:
         contenido = await foto.read()
-        if contenido:
-            tipo_mime = foto.content_type or "image/jpeg"
-            b64_str = base64.b64encode(contenido).decode('utf-8')
-            socio.foto_base64 = f"data:{tipo_mime};base64,{b64_str}"
+        opt = optimizar_imagen(contenido, max_ancho=500, calidad=75)
+        if opt:
+            socio.foto_base64 = opt
+
+    if foto_apto and foto_apto.filename:
+        contenido_apto = await foto_apto.read()
+        opt_apto = optimizar_imagen(contenido_apto, max_ancho=1000, calidad=70)
+        if opt_apto:
+            socio.apto_medico_base64 = opt_apto
 
     if apto_medico_realizacion and apto_medico_realizacion.strip():
         f_realiz = datetime.strptime(apto_medico_realizacion.strip(), "%Y-%m-%d").date()
@@ -461,6 +493,21 @@ async def editar_socio(
 
     db.commit()
     return RedirectResponse(url="/socios", status_code=status.HTTP_302_FOUND)
+
+
+# NUEVO: Endpoint para devolver la imagen del apto médico al modal
+@app.get("/api/socios/{socio_id}/apto-medico")
+def api_obtener_apto_medico(socio_id: int, user: Optional[models.UsuarioSistema] = Depends(auth.get_current_user), db: Session = Depends(get_db)):
+    if not user:
+        raise HTTPException(status_code=401)
+    socio = db.query(models.Socio).get(socio_id)
+    if not socio:
+        raise HTTPException(status_code=404, detail="Socio no encontrado")
+
+    return JSONResponse({
+        "socio": f"{socio.nombre} {socio.apellido}",
+        "apto_base64": socio.apto_medico_base64
+    })
 
 
 @app.post("/socios/anular-cuota/{socio_id}")
@@ -781,7 +828,6 @@ def crear_rutina(
 
     profe_id = int(profesor_id) if profesor_id and profesor_id.strip() and profesor_id != "" else None
 
-    # Desactivar rutinas anteriores para que la nueva sea la activa
     db.query(models.Rutina).filter(models.Rutina.socio_id == socio_id).update({"activa": False})
 
     nueva_rutina = models.Rutina(
@@ -794,7 +840,6 @@ def crear_rutina(
     db.add(nueva_rutina)
     db.commit()
 
-    # Carga de ejercicios predefinidos según la plantilla
     if plantilla == "HIPERTROFIA":
         ejercicios_plantilla = [
             ("Día 1 - Pecho y Bíceps", "Press Banca Plano con Barra", 4, "10-12", "60kg", "90s"),
@@ -1625,7 +1670,7 @@ def molinete_view(request: Request, user: Optional[models.UsuarioSistema] = Depe
 
 
 @app.post("/api/molinete/validar")
-@limiter.limit("60/minute")  # Hasta 1 validación por segundo por lector
+@limiter.limit("60/minute")
 def validar_molinete(request: Request, token: str = Form(...), db: Session = Depends(get_db)):
     socio = db.query(models.Socio).filter(models.Socio.qr_token == token.strip()).first()
     hoy = date.today()

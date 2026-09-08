@@ -67,6 +67,7 @@ class Socio(Base):
     celular = Column(String(30), nullable=False)
     email = Column(String(120), unique=True, index=True, nullable=False)
     foto_base64 = Column(Text, nullable=True)
+    apto_medico_base64 = Column(Text, nullable=True)  # Foto/escaneo optimizado del apto médico
     apto_medico_realizacion = Column(Date, nullable=True)
     apto_medico_vencimiento = Column(Date, nullable=True)
     qr_token = Column(String(100), unique=True, index=True, nullable=False)
