@@ -1,0 +1,101 @@
+/* ========================================================== */
+/* PALETA DE COLORES GLOBAL MAESTRA (EDITABLE)                */
+/* Si mañana quieres otro color, solo cambias estos códigos:  */
+/* ========================================================== */
+:root {
+    --bg-principal: #fce7f3;        /* Fondo general: Rosa pastel Barbie */
+    --bg-tarjetas: #ffffff;         /* Tarjetas, modales y tablas: Blanco pulcro */
+    --bg-secundario: #fdf2f8;       /* Fondos secundarios: Rosa muy claro */
+    --color-barbie: #da1884;        /* Rosa Barbie oficial (Botones y destacados) */
+    --color-barbie-hover: #be185d;  /* Rosa Barbie oscuro (Hover) */
+    --color-texto: #000000;         /* Letras negras de alto contraste */
+    --color-subtexto: #374151;      /* Gris oscuro para subtítulos y fechas */
+    --borde-color: #f472b6;         /* Bordes rosa suave */
+}
+
+/* 1. Fondo global y color de texto */
+body {
+    background-color: var(--bg-principal) !important;
+    color: var(--color-texto) !important;
+}
+
+/* 2. Sobreescribir contenedores oscuros de Tailwind a blanco/rosa */
+.bg-slate-950,
+.bg-slate-900,
+.bg-slate-950\/60,
+.bg-slate-900\/60,
+.bg-slate-900\/80 {
+    background-color: var(--bg-tarjetas) !important;
+    color: var(--color-texto) !important;
+}
+
+/* 3. Bordes oscuros convertidos a bordes rosados elegantes */
+.border-slate-800,
+.border-slate-700,
+.border-slate-800\/80,
+.border-slate-800\/60 {
+    border-color: var(--borde-color) !important;
+}
+
+/* 4. Letras blancas y grises convertidas a negro y gris oscuro */
+.text-white,
+.text-slate-100,
+.text-slate-200 {
+    color: var(--color-texto) !important;
+}
+
+.text-slate-400,
+.text-slate-500 {
+    color: var(--color-subtexto) !important;
+}
+
+/* 5. Inputs y selectores de formularios */
+input, select, textarea {
+    background-color: var(--bg-secundario) !important;
+    color: var(--color-texto) !important;
+    border-color: var(--borde-color) !important;
+}
+
+input:focus, select:focus, textarea:focus {
+    border-color: var(--color-barbie) !important;
+    outline: none !important;
+}
+
+/* 6. Botones principales transformados al Rosa Barbie */
+.bg-emerald-500,
+.bg-emerald-600,
+.bg-indigo-600,
+.bg-indigo-500 {
+    background-color: var(--color-barbie) !important;
+    color: #ffffff !important;
+}
+
+.bg-emerald-500:hover,
+.bg-emerald-600:hover,
+.bg-indigo-600:hover,
+.bg-indigo-500:hover {
+    background-color: var(--color-barbie-hover) !important;
+}
+
+/* 7. Botones secundarios (gris/slate) a rosa suave con texto negro */
+.bg-slate-800 {
+    background-color: var(--bg-secundario) !important;
+    color: var(--color-texto) !important;
+    border: 1px solid var(--borde-color) !important;
+}
+
+.bg-slate-800:hover {
+    background-color: #fbcfe8 !important;
+}
+
+/* 8. Encabezados de tablas */
+thead tr {
+    background-color: #fbcfe8 !important;
+    color: var(--color-texto) !important;
+}
+
+/* 9. Filas de tablas al pasar el cursor */
+.hover\:bg-slate-800\/40:hover,
+.hover\:bg-slate-800\/30:hover {
+    background-color: #fdf2f8 !important;
+}

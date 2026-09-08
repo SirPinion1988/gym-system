@@ -4,45 +4,59 @@ from datetime import datetime, date
 from .database import Base
 
 # ==========================================================
-# 1. TABLA: USUARIOS DEL SISTEMA (ADMINISTRADORES Y RECEPCIÓN)
+# 1. TABLA: USUARIOS DEL SISTEMA (MASTER, ADMIN Y OPERADOR)
 # ==========================================================
 class UsuarioSistema(Base):
     __tablename__ = "usuarios_sistema"
 
     id = Column(Integer, primary_key=True, index=True)
-    # Nombre de usuario único para login de administración (ej: "admin")
+    # Nombre de usuario único (ej: "Sirpinion", "admin", "lucas.recepcion")
     username = Column(String(50), unique=True, index=True, nullable=False)
-    # Contraseña cifrada con algoritmo bcrypt (nunca se guarda en texto plano)
+    # Contraseña encriptada con algoritmo bcrypt
     password_hash = Column(String(255), nullable=False)
-    # Nombre visible del operador en la cabecera
     nombre = Column(String(100), nullable=False)
-    # Rol de usuario: 'ADMIN' (acceso completo) u 'OPERADOR' (recepción diaria)
+    # Correo electrónico para recuperar la contraseña si se extravía
+    email = Column(String(120), nullable=True)
+    # Jerarquía: 'MASTER' (programador/superusuario), 'ADMIN' (gerente/dueño), 'OPERADOR' (mostrador)
     rol = Column(String(20), default="OPERADOR")
-    # Permite inhabilitar el acceso de un empleado sin borrar su historial
     activo = Column(Boolean, default=True)
+
+    # Token y vencimiento para recuperación segura de contraseña por email
+    reset_token = Column(String(120), nullable=True)
+    reset_token_expira = Column(DateTime, nullable=True)
 
 
 # ==========================================================
-# 2. TABLA: PLANES Y MEMBRESÍAS
+# 2. TABLA: CATÁLOGO DE EJERCICIOS BASE (3x10 ESTÁNDAR)
+# ==========================================================
+class CatalogoEjercicio(Base):
+    __tablename__ = "catalogo_ejercicios"
+
+    id = Column(Integer, primary_key=True, index=True)
+    # Grupo muscular: 'Pecho', 'Espalda', 'Piernas', 'Hombros', 'Brazos', 'Core'
+    grupo_muscular = Column(String(50), nullable=False)
+    nombre = Column(String(120), nullable=False)
+    series_default = Column(Integer, default=3)
+    repeticiones_default = Column(String(20), default="10")
+    descanso_default = Column(String(20), default="60s")
+
+
+# ==========================================================
+# 3. TABLA: PLANES Y MEMBRESÍAS
 # ==========================================================
 class Plan(Base):
     __tablename__ = "planes"
 
     id = Column(Integer, primary_key=True, index=True)
-    # Nombre comercial del abono (ej: "Pase Libre Musculación", "3 Días por Semana")
     nombre = Column(String(100), nullable=False)
-    # Tarifa mensual o arancel que se cobra al socio
     precio = Column(Float, nullable=False)
-    # Días de validez que suma a la fecha de vencimiento (habitualmente 30 días)
     dias_duracion = Column(Integer, default=30)
-    # Descripción visible en recepción y credencial del socio
     descripcion = Column(String(200), nullable=True)
-    # Si está activo aparece en el selector para nuevos cobros
     activo = Column(Boolean, default=True)
 
 
 # ==========================================================
-# 3. TABLA: PROFESORES, ENTRENADORES Y SUELDOS
+# 4. TABLA: PROFESORES, ENTRENADORES Y SUELDOS
 # ==========================================================
 class Profesor(Base):
     __tablename__ = "profesores"
@@ -52,34 +66,23 @@ class Profesor(Base):
     apellido = Column(String(100), nullable=False)
     dni = Column(String(20), unique=True, nullable=False)
     celular = Column(String(30), nullable=False)
-    # Área de desempeño (ej: "Musculación", "Spinning", "Crossfit")
     especialidad = Column(String(100), nullable=True)
-    # Sueldo pactado para el cálculo de costos en el balance
     sueldo = Column(Float, default=0.0)
-    # Modalidad de cobro del docente: 'MENSUAL' o 'POR_HORA'
     tipo_sueldo = Column(String(30), default="MENSUAL")
     activo = Column(Boolean, default=True)
 
-    # Relaciones con clases a cargo, rutinas diseñadas y liquidaciones cobradas
     clases = relationship("Actividad", back_populates="profesor")
     rutinas_creadas = relationship("Rutina", back_populates="profesor")
     pagos_recibidos = relationship("PagoProfesor", back_populates="profesor", cascade="all, delete-orphan")
 
 
-# ==========================================================
-# 4. TABLA: LIQUIDACIÓN REAL DE SUELDOS A DOCENTES
-# ==========================================================
 class PagoProfesor(Base):
     __tablename__ = "pagos_profesores"
 
     id = Column(Integer, primary_key=True, index=True)
-    # Clave foránea al profesor que recibe el dinero
     profesor_id = Column(Integer, ForeignKey("profesores.id"), nullable=False)
-    # Importe abonado que se descuenta del balance de caja
     monto = Column(Float, nullable=False)
-    # Motivo (ej: "Adelanto quincena", "Sueldo mes vencido", "Horas extra")
     concepto = Column(String(150), default="Liquidación de Sueldo / Honorarios")
-    # Medio utilizado: 'EFECTIVO' o 'TRANSFERENCIA'
     metodo_pago = Column(String(50), default="EFECTIVO")
     fecha_pago = Column(DateTime, default=datetime.utcnow)
 
@@ -87,19 +90,15 @@ class PagoProfesor(Base):
 
 
 # ==========================================================
-# 5. TABLA: CLASES GRUPALES Y HORARIOS
+# 5. TABLA: ACTIVIDADES / CLASES
 # ==========================================================
 class Actividad(Base):
     __tablename__ = "actividades"
 
     id = Column(Integer, primary_key=True, index=True)
-    # Nombre de la clase (ej: "Yoga", "Funcional")
     nombre = Column(String(100), nullable=False)
-    # Días semanales (ej: "Lunes, Miércoles y Viernes")
     dias = Column(String(100), nullable=False)
-    # Rango horario (ej: "19:00 a 20:00")
     horario = Column(String(50), nullable=False)
-    # Capacidad máxima permitida por turno
     cupo_maximo = Column(Integer, default=20)
     profesor_id = Column(Integer, ForeignKey("profesores.id"), nullable=True)
 
@@ -113,42 +112,28 @@ class Socio(Base):
     __tablename__ = "socios"
 
     id = Column(Integer, primary_key=True, index=True)
-    dni = Column(String(20), unique=True, index=True, nullable=False)
+    dni = Column(String(20), unique=True, index=True, nullable=False)  # Sirve como Usuario de acceso
     nombre = Column(String(100), nullable=False)
     apellido = Column(String(100), nullable=False)
     fecha_nacimiento = Column(Date, nullable=False)
     edad = Column(Integer, nullable=False)
     celular = Column(String(30), nullable=False)
-    email = Column(String(120), unique=True, index=True, nullable=False)
-
-    # Imágenes almacenadas en Base64 con compresión automática
-    foto_base64 = Column(Text, nullable=True)          # Foto carnet del socio
-    apto_medico_base64 = Column(Text, nullable=True)   # Escaneo/foto del certificado médico
-
-    # Fechas de control médico (vencimiento estándar a 1 año)
+    email = Column(String(120), unique=True, index=True, nullable=False)  # Sirve como Contraseña de acceso
+    foto_base64 = Column(Text, nullable=True)
+    apto_medico_base64 = Column(Text, nullable=True)
     apto_medico_realizacion = Column(Date, nullable=True)
     apto_medico_vencimiento = Column(Date, nullable=True)
-
-    # Identificador único e irrepetible para validar el QR en el molinete
     qr_token = Column(String(100), unique=True, index=True, nullable=False)
-    # Estado de la membresía: 'ACTIVO' o 'INACTIVO'
     estado_cuota = Column(String(20), default="ACTIVO")
     fecha_vencimiento_cuota = Column(Date, nullable=True)
-
     plan_id = Column(Integer, ForeignKey("planes.id"), nullable=True)
-
-    # Moduladores manuales de acceso por recepción:
-    bloqueado_manual = Column(Boolean, default=False)         # Bloquea el paso aunque la cuota esté al día
-    habilitacion_manual_hasta = Column(Date, nullable=True)   # Prórroga especial de paso aunque la cuota esté vencida
-
-    # Campos reservados para tarjeta de crédito/débito tokenizada en pasarela
+    bloqueado_manual = Column(Boolean, default=False)
+    habilitacion_manual_hasta = Column(Date, nullable=True)
     tarjeta_tokenizada = Column(Boolean, default=False)
     tarjeta_marca = Column(String(30), nullable=True)
     tarjeta_ultimos4 = Column(String(4), nullable=True)
-
     creado_en = Column(DateTime, default=datetime.utcnow)
 
-    # Relaciones en cascada: si se borra un socio, se limpian sus registros dependientes
     plan = relationship("Plan")
     pagos = relationship("Pago", back_populates="socio", cascade="all, delete-orphan")
     facturas = relationship("Factura", back_populates="socio", cascade="all, delete-orphan")
@@ -158,7 +143,7 @@ class Socio(Base):
 
 
 # ==========================================================
-# 7. TABLA: EVOLUCIÓN FÍSICA Y MEDIDAS CORPORALES
+# 7. TABLA: EVOLUCIÓN FÍSICA Y MÉTRICAS CORPORALES
 # ==========================================================
 class EvolucionSocio(Base):
     __tablename__ = "evolucion_socio"
@@ -177,7 +162,6 @@ class EvolucionSocio(Base):
 
     socio = relationship("Socio", back_populates="evoluciones")
 
-    # Propiedad calculada en memoria para el Índice de Masa Corporal (IMC)
     @property
     def imc(self):
         if self.peso_kg and self.altura_cm and self.altura_cm > 0:
@@ -187,7 +171,7 @@ class EvolucionSocio(Base):
 
 
 # ==========================================================
-# 8. TABLAS: RUTINAS Y EJERCICIOS (100% INCLUIDAS / SIN COSTO)
+# 8. TABLAS: RUTINAS Y EJERCICIOS
 # ==========================================================
 class Rutina(Base):
     __tablename__ = "rutinas"
@@ -210,21 +194,19 @@ class EjercicioRutina(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     rutina_id = Column(Integer, ForeignKey("rutinas.id"), nullable=False)
-    # Día o grupo muscular (ej: "Día 1 - Pecho y Bíceps")
     dia_grupo = Column(String(50), nullable=False)
     ejercicio = Column(String(120), nullable=False)
-    series = Column(Integer, default=4)
-    repeticiones = Column(String(30), default="10-12")
+    series = Column(Integer, default=3)
+    repeticiones = Column(String(30), default="10")
     peso_sugerido = Column(String(30), default="")
     descanso = Column(String(30), default="60s")
-    # Estado interactivo que el socio tilda desde su celular
     completado = Column(Boolean, default=False)
 
     rutina = relationship("Rutina", back_populates="ejercicios")
 
 
 # ==========================================================
-# 9. TABLA: COBROS Y PAGOS (CUOTAS)
+# 9. TABLAS: PAGOS, FACTURACIÓN, KIOSCO Y ACCESOS
 # ==========================================================
 class Pago(Base):
     __tablename__ = "pagos"
@@ -234,18 +216,13 @@ class Pago(Base):
     monto = Column(Float, nullable=False)
     metodo_pago = Column(String(50), default="EFECTIVO")
     concepto = Column(String(150), default="Pago de Cuota")
-    # ID de transacción de Mercado Pago para evitar duplicados en el Webhook
     external_payment_id = Column(String(100), unique=True, nullable=True)
     fecha_pago = Column(DateTime, default=datetime.utcnow)
 
     socio = relationship("Socio", back_populates="pagos")
-    # Relación 1 a 1 con su factura fiscal generada
     factura = relationship("Factura", back_populates="pago", uselist=False, cascade="all, delete-orphan")
 
 
-# ==========================================================
-# 10. TABLA: FACTURAS ELECTRÓNICAS (ARCA / EX AFIP)
-# ==========================================================
 class Factura(Base):
     __tablename__ = "facturas"
 
@@ -265,9 +242,6 @@ class Factura(Base):
     pago = relationship("Pago", back_populates="factura")
 
 
-# ==========================================================
-# 11. TABLA: PRODUCTOS Y KIOSCO (PUNTO DE VENTA)
-# ==========================================================
 class Producto(Base):
     __tablename__ = "productos"
 
@@ -292,18 +266,13 @@ class VentaProducto(Base):
     producto = relationship("Producto")
 
 
-# ==========================================================
-# 12. TABLA: AUDITORÍA Y CONTROL DE ACCESOS (MOLINETE)
-# ==========================================================
 class RegistroAcceso(Base):
     __tablename__ = "registros_acceso"
 
     id = Column(Integer, primary_key=True, index=True)
     socio_id = Column(Integer, ForeignKey("socios.id"), nullable=False)
     fecha_hora = Column(DateTime, default=datetime.utcnow)
-    # Resultado del intento: 'PERMITIDO' o 'DENEGADO'
     resultado = Column(String(20), nullable=False)
-    # Razón técnica (ej: "OK", "CUOTA_VENCIDA", "APTO_MEDICO_VENCIDO", "BLOQUEADO_MANUAL")
     motivo = Column(String(100), nullable=False)
 
     socio = relationship("Socio", back_populates="accesos")

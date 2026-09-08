@@ -204,3 +204,148 @@ def enviar_correo_factura(destinatario: str, nombre_socio: str, pdf_bytes: bytes
     except Exception as e:
         print(f"[MAIL ERROR]: {e}")
         return False
+
+
+def enviar_correo_bienvenida(destinatario: str, nombre: str, dni: str, url_credencial: str):
+    """
+    Envía el correo de bienvenida al socio cuando es dado de alta.
+    Informa que su usuario es su DNI y su contraseña es su correo electrónico.
+    """
+    if not SMTP_USER or not SMTP_PASSWORD:
+        return False
+
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = f"{RAZON_SOCIAL} <{SMTP_USER}>"
+        msg['To'] = destinatario
+        msg['Subject'] = f"¡Bienvenido a {RAZON_SOCIAL}! Tus credenciales de acceso"
+
+        cuerpo_html = f"""
+        <!DOCTYPE html>
+        <html>
+        <body style="font-family: Arial, sans-serif; background-color: #f1f5f9; padding: 20px; color: #1e293b;">
+            <div style="max-width: 550px; margin: auto; background: white; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0;">
+                <div style="background-color: #0f172a; padding: 20px; text-align: center; color: white;">
+                    <h2 style="margin: 0;">{RAZON_SOCIAL}</h2>
+                    <span style="color: #10b981; font-size: 12px; font-weight: bold;">ALTA DE SOCIO EXITOSA</span>
+                </div>
+                <div style="padding: 24px;">
+                    <p>Hola <b>{nombre}</b>, ¡te damos la bienvenida al gimnasio!</p>
+                    <p>Ya puedes acceder a tu credencial digital, tu código QR para el molinete y ver tus rutinas de entrenamiento:</p>
+                    <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 16px; margin: 15px 0;">
+                        <b>Usuario:</b> {dni} (Tu DNI)<br/>
+                        <b>Contraseña:</b> {destinatario} (Tu correo electrónico)
+                    </div>
+                    <div style="text-align: center; margin-top: 20px;">
+                        <a href="{url_credencial}" style="background: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Ver Mi Credencial Digital</a>
+                    </div>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        msg.attach(MIMEText(cuerpo_html, 'html'))
+        server = smtplib.SMTP(SMTP_HOST, SMTP_PORT)
+        server.starttls()
+        server.login(SMTP_USER, SMTP_PASSWORD)
+        server.send_message(msg)
+        server.quit()
+        return True
+    except Exception as e:
+        print(f"[MAIL BIENVENIDA ERROR]: {e}")
+        return False
+
+
+def enviar_aviso_vencimiento(destinatario: str, nombre: str, dias_restantes: int, fecha_vto: str, link_pago: str):
+    """
+    Envía aviso preventivo al socio (7 días o 1 día antes del vencimiento)
+    para que renueve y no quede retenido en el molinete.
+    """
+    if not SMTP_USER or not SMTP_PASSWORD:
+        return False
+
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = f"{RAZON_SOCIAL} <{SMTP_USER}>"
+        msg['To'] = destinatario
+        msg['Subject'] = f"Aviso de Vencimiento de Cuota ({dias_restantes} días) - {RAZON_SOCIAL}"
+
+        cuerpo_html = f"""
+        <!DOCTYPE html>
+        <html>
+        <body style="font-family: Arial, sans-serif; background-color: #f1f5f9; padding: 20px; color: #1e293b;">
+            <div style="max-width: 550px; margin: auto; background: white; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0;">
+                <div style="background-color: #0f172a; padding: 20px; text-align: center; color: white;">
+                    <h2 style="margin: 0;">{RAZON_SOCIAL}</h2>
+                    <span style="color: #f59e0b; font-size: 12px; font-weight: bold;">RECORDATORIO DE PAGO</span>
+                </div>
+                <div style="padding: 24px;">
+                    <p>Hola <b>{nombre}</b>,</p>
+                    <p>Te recordamos que tu abono vence el día <b>{fecha_vto}</b> (en {dias_restantes} días).</p>
+                    <p>Puedes abonar online ahora mismo con Mercado Pago para evitar demoras en el molinete:</p>
+                    <div style="text-align: center; margin: 25px 0;">
+                        <a href="{link_pago}" style="background: #0284c7; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Renovar Cuota Online</a>
+                    </div>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        msg.attach(MIMEText(cuerpo_html, 'html'))
+        server = smtplib.SMTP(SMTP_HOST, SMTP_PORT)
+        server.starttls()
+        server.login(SMTP_USER, SMTP_PASSWORD)
+        server.send_message(msg)
+        server.quit()
+        return True
+    except Exception as e:
+        print(f"[MAIL VTO ERROR]: {e}")
+        return False
+
+
+def enviar_correo_recuperacion_password(destinatario: str, nombre_usuario: str, enlace_recuperacion: str):
+    """
+    Envía un correo seguro con enlace de un solo uso para reestablecer la contraseña
+    olvidada de un Operador o Administrador.
+    """
+    if not SMTP_USER or not SMTP_PASSWORD:
+        return False
+
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = f"{RAZON_SOCIAL} <{SMTP_USER}>"
+        msg['To'] = destinatario
+        msg['Subject'] = f"Recuperación de Contraseña - {RAZON_SOCIAL}"
+
+        cuerpo_html = f"""
+        <!DOCTYPE html>
+        <html>
+        <body style="font-family: Arial, sans-serif; background-color: #f1f5f9; padding: 20px; color: #1e293b;">
+            <div style="max-width: 550px; margin: auto; background: white; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0;">
+                <div style="background-color: #0f172a; padding: 20px; text-align: center; color: white;">
+                    <h2 style="margin: 0;">{RAZON_SOCIAL}</h2>
+                    <span style="color: #6366f1; font-size: 12px; font-weight: bold;">SEGURIDAD DE LA CUENTA</span>
+                </div>
+                <div style="padding: 24px;">
+                    <p>Hola <b>{nombre_usuario}</b>,</p>
+                    <p>Recibimos una solicitud para restablecer la contraseña de tu cuenta en el sistema de gestión.</p>
+                    <p>Haz clic en el siguiente botón para definir una nueva clave (el enlace expira en 30 minutos):</p>
+                    <div style="text-align: center; margin: 25px 0;">
+                        <a href="{enlace_recuperacion}" style="background: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Restablecer Mi Contraseña</a>
+                    </div>
+                    <p style="font-size: 11px; color: #64748b;">Si no solicitaste este cambio, puedes ignorar este mensaje.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        msg.attach(MIMEText(cuerpo_html, 'html'))
+        server = smtplib.SMTP(SMTP_HOST, SMTP_PORT)
+        server.starttls()
+        server.login(SMTP_USER, SMTP_PASSWORD)
+        server.send_message(msg)
+        server.quit()
+        return True
+    except Exception as e:
+        print(f"[MAIL RECUPERACION ERROR]: {e}")
+        return False

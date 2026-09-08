@@ -5,196 +5,166 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Credencial Digital | {{ socio.nombre }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- VINCULACIÓN AUTOMÁTICA DEL TEMA ROSA BARBIE -->
+    <link rel="stylesheet" href="/static/theme-override.css">
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen p-4 flex flex-col items-center justify-center">
+<body class="bg-pink-100 text-black min-h-screen p-4 flex flex-col items-center justify-center font-sans">
 
-    <div class="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl relative overflow-hidden space-y-4">
-        <!-- ENCABEZADO CON IDENTIDAD INSTITUCIONAL -->
+    <div class="w-full max-w-sm bg-white border-2 border-pink-300 rounded-3xl p-6 shadow-2xl relative overflow-hidden space-y-4">
+        <!-- Encabezado con Logo y Nombre -->
         <div class="flex justify-between items-center">
             <div class="flex items-center space-x-3">
                 {% if socio.foto_base64 %}
-                    <img src="{{ socio.foto_base64 }}" alt="Foto Socio" class="w-12 h-12 rounded-full object-cover border-2 border-emerald-500 shadow-md">
+                    <img src="{{ socio.foto_base64 }}" alt="Foto" class="w-12 h-12 rounded-full object-cover border-2 border-[#da1884] shadow-sm">
                 {% else %}
-                    <div class="w-12 h-12 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 font-bold text-sm">
+                    <div class="w-12 h-12 rounded-full bg-pink-100 border border-pink-300 flex items-center justify-center text-[#da1884] font-black text-sm">
                         {{ socio.nombre[:1] }}{{ socio.apellido[:1] }}
                     </div>
                 {% endif %}
                 <div>
-                    <span class="text-[10px] uppercase tracking-wider text-emerald-400 font-bold">{{ gym_nombre }}</span>
-                    <h1 class="text-base font-black text-white leading-tight">{{ socio.nombre }} {{ socio.apellido }}</h1>
-                    <p class="text-xs text-slate-400 font-mono">DNI: {{ socio.dni }}</p>
+                    <span class="text-[10px] uppercase tracking-wider text-[#da1884] font-black">{{ gym_nombre }}</span>
+                    <h1 class="text-base font-black text-black leading-tight">{{ socio.nombre }} {{ socio.apellido }}</h1>
+                    <p class="text-xs text-gray-600 font-mono">DNI: {{ socio.dni }}</p>
                 </div>
             </div>
-            <div>
-                <img src="/static/logo.png" onerror="this.style.display='none'; document.getElementById('cred-logo-fallback').style.display='inline-flex';" class="h-9 max-w-[70px] object-contain" alt="Logo">
-                <div id="cred-logo-fallback" class="hidden w-9 h-9 rounded-full bg-emerald-500/20 border border-emerald-500/40 items-center justify-center font-black text-emerald-400 text-xs">GP</div>
+            <div class="w-9 h-9 rounded-full bg-pink-100 border border-pink-300 flex items-center justify-center font-black text-[#da1884] text-xs shadow-sm">
+                💖
             </div>
         </div>
 
-        <!-- SELECTOR DE 3 PESTAÑAS: ACCESO | RUTINA | EVOLUCIÓN -->
-        <div class="grid grid-cols-3 gap-1.5 bg-slate-950 p-1.5 rounded-2xl border border-slate-800 text-center text-xs font-bold">
-            <button id="btn-tab-acceso" onclick="cambiarSeccion('acceso')" class="py-2 rounded-xl transition bg-emerald-500 text-white shadow-md">Acceso</button>
-            <button id="btn-tab-rutina" onclick="cambiarSeccion('rutina')" class="py-2 rounded-xl transition text-slate-400 hover:text-white">Rutina</button>
-            <button id="btn-tab-evolucion" onclick="cambiarSeccion('evolucion')" class="py-2 rounded-xl transition text-slate-400 hover:text-white">Evolución</button>
+        <!-- Selector de 3 Pestañas -->
+        <div class="grid grid-cols-3 gap-1.5 bg-pink-50 p-1.5 rounded-2xl border border-pink-200 text-center text-xs font-bold">
+            <button id="btn-tab-acceso" onclick="cambiarSeccion('acceso')" class="py-2 rounded-xl transition bg-[#da1884] text-white shadow-sm">Acceso</button>
+            <button id="btn-tab-rutina" onclick="cambiarSeccion('rutina')" class="py-2 rounded-xl transition text-gray-700 hover:text-black">Rutina</button>
+            <button id="btn-tab-evolucion" onclick="cambiarSeccion('evolucion')" class="py-2 rounded-xl transition text-gray-700 hover:text-black">Evolución</button>
         </div>
 
-        <!-- ========================================================== -->
-        <!-- SECCIÓN 1: ACCESO, QR Y PAGOS ONLINE                       -->
-        <!-- ========================================================== -->
+        <!-- SECCIÓN 1: ACCESO Y QR -->
         <div id="seccion-acceso" class="space-y-4">
-            <!-- Cartel indicador de autorización de paso -->
             {% if habilitado %}
-                <div class="bg-emerald-950/70 border border-emerald-500/40 text-emerald-300 text-xs font-black px-3 py-2 rounded-xl text-center flex items-center justify-center gap-2">
-                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> PUEDE PASAR AL GIMNASIO
+                <div class="bg-pink-100 border border-pink-300 text-[#da1884] text-xs font-black px-3 py-2 rounded-xl text-center flex items-center justify-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-[#da1884] animate-pulse"></span> PUEDE PASAR AL GIMNASIO
                 </div>
             {% else %}
-                <div class="bg-rose-950/70 border border-rose-500/40 text-rose-300 text-xs font-black px-3 py-2 rounded-xl text-center flex items-center justify-center gap-2">
+                <div class="bg-rose-100 border border-rose-300 text-rose-700 text-xs font-black px-3 py-2 rounded-xl text-center flex items-center justify-center gap-2">
                     <span>🔒</span> FALTA REGULARIZAR INGRESO
                 </div>
             {% endif %}
 
-            <!-- Código QR generado en vivo para apoyar en el molinete -->
-            <div class="bg-white p-4 rounded-2xl mx-auto text-center shadow-inner">
-                <img src="{{ qr_image }}" alt="Código QR Socio" class="w-44 h-44 mx-auto">
+            <div class="bg-pink-50 p-4 rounded-2xl border border-pink-200 mx-auto text-center shadow-inner">
+                <img src="{{ qr_image }}" alt="QR" class="w-44 h-44 mx-auto">
             </div>
 
-            <!-- Datos de vigencia de cuota y certificado médico -->
-            <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-2 text-xs">
-                <div class="flex justify-between"><span class="text-slate-400">Plan contratado:</span><span class="font-bold text-white">{{ plan.nombre if plan else 'Sin Plan' }}</span></div>
-                <div class="flex justify-between"><span class="text-slate-400">Vencimiento Cuota:</span><span class="font-mono {% if cuota_al_dia %}text-slate-200{% else %}text-rose-400 font-bold{% endif %}">{{ socio.fecha_vencimiento_cuota.strftime('%d/%m/%Y') if socio.fecha_vencimiento_cuota else 'Pendiente' }}</span></div>
-                <div class="flex justify-between"><span class="text-slate-400">Apto Médico:</span><span class="{% if apto_al_dia %}text-emerald-400{% else %}text-amber-400 font-bold{% endif %}">{{ 'Vigente hasta ' + socio.apto_medico_vencimiento.strftime('%d/%m/%Y') if apto_al_dia else 'Presentar Apto' }}</span></div>
+            <div class="bg-pink-50 border border-pink-200 rounded-2xl p-4 space-y-2 text-xs">
+                <div class="flex justify-between"><span class="text-gray-600 font-bold">Plan:</span><span class="font-black text-black">{{ plan.nombre if plan else 'Sin Plan' }}</span></div>
+                <div class="flex justify-between"><span class="text-gray-600 font-bold">Vencimiento:</span><span class="font-mono {% if cuota_al_dia %}text-black font-bold{% else %}text-rose-600 font-black{% endif %}">{{ socio.fecha_vencimiento_cuota.strftime('%d/%m/%Y') if socio.fecha_vencimiento_cuota else 'Pendiente' }}</span></div>
+                <div class="flex justify-between"><span class="text-gray-600 font-bold">Apto Médico:</span><span class="{% if apto_al_dia %}text-emerald-700 font-bold{% else %}text-amber-700 font-black{% endif %}">{{ 'Vigente hasta ' + socio.apto_medico_vencimiento.strftime('%d/%m/%Y') if apto_al_dia else 'Presentar Apto' }}</span></div>
             </div>
 
-            <!-- Botón de Mercado Pago visible solo si el socio adeuda su abono -->
             {% if not cuota_al_dia and init_point_mp %}
-                <a href="{{ init_point_mp }}" class="w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 rounded-xl text-xs transition flex items-center justify-center gap-2 shadow-lg shadow-sky-500/20">
+                <a href="{{ init_point_mp }}" class="w-full bg-[#da1884] hover:bg-[#be185d] text-white font-bold py-3 rounded-xl text-xs transition flex items-center justify-center gap-2 shadow-md">
                     <span>💳</span> Pagar Cuota con Mercado Pago (${{ "%.2f"|format(plan.precio) }})
                 </a>
             {% endif %}
 
-            <!-- Historial de comprobantes fiscales con botón para descargar el PDF -->
             {% if facturas %}
-                <div class="pt-2 border-t border-slate-800 space-y-1 max-h-32 overflow-y-auto">
-                    <span class="text-[10px] font-bold text-slate-400 block mb-1">Mis Comprobantes Oficiales ARCA:</span>
+                <div class="pt-2 border-t border-pink-200 space-y-1 max-h-32 overflow-y-auto">
+                    <span class="text-[10px] font-bold text-gray-600 block mb-1">Mis Comprobantes ARCA:</span>
                     {% for f in facturas %}
-                    <a href="/factura/descargar/{{ f.id }}" class="w-full bg-slate-800/80 hover:bg-slate-800 text-slate-300 px-3 py-1.5 rounded-xl text-[11px] flex justify-between items-center border border-slate-700/60">
+                    <a href="/factura/descargar/{{ f.id }}" class="w-full bg-pink-50 hover:bg-pink-100 text-black px-3 py-1.5 rounded-xl text-[11px] flex justify-between items-center border border-pink-200">
                         <span>Comp. {{ "%04d"|format(f.punto_venta) }}-{{ "%08d"|format(f.numero_comprobante) }}</span>
-                        <span class="text-emerald-400 font-mono font-bold">${{ "%.2f"|format(f.monto_total) }}</span>
+                        <span class="text-[#da1884] font-mono font-bold">${{ "%.2f"|format(f.monto_total) }}</span>
                     </a>
                     {% endfor %}
                 </div>
             {% endif %}
         </div>
 
-        <!-- ========================================================== -->
-        <!-- SECCIÓN 2: RUTINA GRATUITA Y TILDADO DE EJERCICIOS         -->
-        <!-- ========================================================== -->
+        <!-- SECCIÓN 2: RUTINAS TILDABLES -->
         <div id="seccion-rutina" class="space-y-4 hidden">
             {% if rutina %}
-                <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4">
+                <div class="bg-pink-50 border border-pink-200 rounded-2xl p-4">
                     <div class="flex justify-between items-start mb-2">
                         <div>
-                            <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-400">{{ rutina.objetivo or 'Plan de Trabajo' }}</span>
-                            <h2 class="text-base font-black text-white">{{ rutina.nombre_rutina }}</h2>
+                            <span class="text-[10px] font-black uppercase tracking-wider text-[#da1884]">{{ rutina.objetivo or 'Plan de Trabajo' }}</span>
+                            <h2 class="text-base font-black text-black">{{ rutina.nombre_rutina }}</h2>
                         </div>
-                        <button onclick="reiniciarRutina({{ rutina.id }})" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded-lg border border-slate-700">🔄 Reiniciar</button>
+                        <button onclick="reiniciarRutina({{ rutina.id }})" class="text-[10px] bg-white border border-pink-300 text-black px-2 py-1 rounded-lg font-bold">🔄 Reiniciar</button>
                     </div>
-                    <!-- Barra de progreso del entrenamiento en vivo -->
                     <div class="space-y-1 mt-2">
-                        <div class="flex justify-between text-[11px]"><span class="text-slate-400">Progreso completado:</span><span id="progreso-texto" class="font-bold text-emerald-400">{{ porcentaje_rutina }}%</span></div>
-                        <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden"><div id="progreso-barra" class="bg-emerald-500 h-2 rounded-full transition-all duration-300" style="width: {{ porcentaje_rutina }}%"></div></div>
+                        <div class="flex justify-between text-[11px]"><span class="text-gray-600 font-bold">Progreso:</span><span id="progreso-texto" class="font-black text-[#da1884]">{{ porcentaje_rutina }}%</span></div>
+                        <div class="w-full bg-pink-200 rounded-full h-2.5 overflow-hidden"><div id="progreso-barra" class="bg-[#da1884] h-2.5 rounded-full transition-all duration-300" style="width: {{ porcentaje_rutina }}%"></div></div>
                     </div>
                 </div>
 
-                <!-- Lista de ejercicios con casilla de verificación asíncrona -->
                 <div class="space-y-2 max-h-96 overflow-y-auto pr-1">
                     {% for ej in rutina.ejercicios %}
-                    <div id="card-ej-{{ ej.id }}" class="p-3 rounded-2xl border transition flex items-start justify-between gap-3 {% if ej.completado %}bg-emerald-950/20 border-emerald-800/60 opacity-80{% else %}bg-slate-950 border-slate-800{% endif %}">
+                    <div id="card-ej-{{ ej.id }}" class="p-3 rounded-2xl border transition flex items-start justify-between gap-3 {% if ej.completado %}bg-pink-100 border-pink-300 opacity-80{% else %}bg-pink-50 border-pink-200{% endif %}">
                         <div class="flex-1">
-                            <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-400 block">{{ ej.dia_grupo }}</span>
-                            <h4 id="nombre-ej-{{ ej.id }}" class="text-sm font-bold {% if ej.completado %}line-through text-slate-400{% else %}text-white{% endif %}">{{ ej.ejercicio }}</h4>
-                            <div class="text-[11px] text-slate-400 mt-1 flex flex-wrap gap-x-2 font-mono">
+                            <span class="text-[10px] font-black uppercase tracking-wider text-[#da1884] block">{{ ej.dia_grupo }}</span>
+                            <h4 id="nombre-ej-{{ ej.id }}" class="text-sm font-bold {% if ej.completado %}line-through text-gray-500{% else %}text-black{% endif %}">{{ ej.ejercicio }}</h4>
+                            <div class="text-[11px] text-gray-600 mt-1 flex flex-wrap gap-x-2 font-mono">
                                 <span>{{ ej.series }}x{{ ej.repeticiones }}</span>
                                 {% if ej.peso_sugerido %}<span>• {{ ej.peso_sugerido }}</span>{% endif %}
                                 <span>• Descanso: {{ ej.descanso }}</span>
                             </div>
                         </div>
-                        <button onclick="toggleEjercicio({{ ej.id }})" class="mt-1 w-7 h-7 rounded-xl flex items-center justify-center border transition {% if ej.completado %}bg-emerald-500 border-emerald-400 text-white{% else %}bg-slate-900 border-slate-700 text-transparent hover:border-emerald-500{% endif %}">
+                        <button onclick="toggleEjercicio({{ ej.id }})" class="mt-1 w-7 h-7 rounded-xl flex items-center justify-center border transition {% if ej.completado %}bg-[#da1884] border-[#da1884] text-white{% else %}bg-white border-pink-300 text-transparent hover:border-[#da1884]{% endif %}">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
                         </button>
                     </div>
                     {% endfor %}
                 </div>
             {% else %}
-                <div class="bg-slate-950 border border-slate-800 rounded-2xl p-8 text-center space-y-2">
+                <div class="bg-pink-50 border border-pink-200 rounded-2xl p-8 text-center space-y-2">
                     <span class="text-3xl">📋</span>
-                    <h3 class="font-bold text-white text-sm">Sin rutina asignada</h3>
-                    <p class="text-xs text-slate-400">Pídele a tu entrenador que cargue tu plan de entrenamiento gratuito.</p>
+                    <h3 class="font-bold text-black text-sm">Sin rutina activa</h3>
+                    <p class="text-xs text-gray-600">Pídele a tu entrenador que cargue tu plan de entrenamiento.</p>
                 </div>
             {% endif %}
         </div>
 
-        <!-- ========================================================== -->
-        <!-- SECCIÓN 3: EVOLUCIÓN FÍSICA Y MÉTRICAS (IMC)               -->
-        <!-- ========================================================== -->
+        <!-- SECCIÓN 3: EVOLUCIÓN FÍSICA -->
         <div id="seccion-evolucion" class="space-y-4 hidden">
             {% if socio.evoluciones %}
                 {% set ultima = socio.evoluciones[0] %}
-                <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-3">
+                <div class="bg-pink-50 border border-pink-200 rounded-2xl p-4 space-y-3">
                     <div class="flex justify-between items-center">
-                        <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Último Control: {{ ultima.fecha.strftime('%d/%m/%Y') }}</span>
+                        <span class="text-[10px] font-black uppercase tracking-wider text-[#da1884]">Último Control: {{ ultima.fecha.strftime('%d/%m/%Y') }}</span>
                         {% if ultima.imc %}
-                            <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-950 text-indigo-400 border border-indigo-800">IMC: {{ ultima.imc }}</span>
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-white border border-pink-300 text-[#da1884]">IMC: {{ ultima.imc }}</span>
                         {% endif %}
                     </div>
                     <div class="grid grid-cols-3 gap-2 text-center">
-                        <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-800">
-                            <span class="text-[10px] text-slate-400 block">Peso</span>
-                            <span class="font-black text-white text-sm">{{ ultima.peso_kg or '-' }} kg</span>
+                        <div class="bg-white p-2.5 rounded-xl border border-pink-200">
+                            <span class="text-[10px] text-gray-600 block font-bold">Peso</span>
+                            <span class="font-black text-black text-sm">{{ ultima.peso_kg or '-' }} kg</span>
                         </div>
-                        <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-800">
-                            <span class="text-[10px] text-slate-400 block">% Grasa</span>
-                            <span class="font-black text-indigo-400 text-sm">{{ ultima.porcentaje_grasa ~ '%' if ultima.porcentaje_grasa else '-' }}</span>
+                        <div class="bg-white p-2.5 rounded-xl border border-pink-200">
+                            <span class="text-[10px] text-gray-600 block font-bold">% Grasa</span>
+                            <span class="font-black text-[#da1884] text-sm">{{ ultima.porcentaje_grasa ~ '%' if ultima.porcentaje_grasa else '-' }}</span>
                         </div>
-                        <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-800">
-                            <span class="text-[10px] text-slate-400 block">Cintura</span>
-                            <span class="font-black text-emerald-400 text-sm">{{ ultima.cintura_cm ~ ' cm' if ultima.cintura_cm else '-' }}</span>
+                        <div class="bg-white p-2.5 rounded-xl border border-pink-200">
+                            <span class="text-[10px] text-gray-600 block font-bold">Cintura</span>
+                            <span class="font-black text-black text-sm">{{ ultima.cintura_cm ~ ' cm' if ultima.cintura_cm else '-' }}</span>
                         </div>
                     </div>
-                    {% if ultima.notas %}
-                    <p class="text-[11px] text-slate-400 italic bg-slate-900/60 p-2.5 rounded-xl border border-slate-800/80">
-                        "{{ ultima.notas }}"
-                    </p>
-                    {% endif %}
-                </div>
-
-                <div class="space-y-2 max-h-60 overflow-y-auto pr-1">
-                    <span class="text-[11px] font-bold text-slate-400 block">Historial de Mediciones:</span>
-                    {% for ev in socio.evoluciones %}
-                    <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 text-xs flex justify-between items-center">
-                        <span class="font-mono text-slate-400">{{ ev.fecha.strftime('%d/%m/%Y') }}</span>
-                        <span class="font-bold text-white">{{ ev.peso_kg }} kg</span>
-                        <span class="text-slate-400">{{ ev.cintura_cm ~ ' cm' if ev.cintura_cm else '' }}</span>
-                        {% if ev.imc %}<span class="text-indigo-400 font-bold">IMC {{ ev.imc }}</span>{% endif %}
-                    </div>
-                    {% endfor %}
                 </div>
             {% else %}
-                <div class="bg-slate-950 border border-slate-800 rounded-2xl p-8 text-center space-y-2">
+                <div class="bg-pink-50 border border-pink-200 rounded-2xl p-8 text-center space-y-2">
                     <span class="text-3xl">⚖️</span>
-                    <h3 class="font-bold text-white text-sm">Sin mediciones corporales</h3>
-                    <p class="text-xs text-slate-400">Pide una medición en recepción o a tu profesor para registrar tu peso y medidas.</p>
+                    <h3 class="font-bold text-black text-sm">Sin registros aún</h3>
+                    <p class="text-xs text-gray-600">Pide una medición en recepción para registrar tu progreso.</p>
                 </div>
             {% endif %}
         </div>
 
-        <div class="pt-3 border-t border-slate-800 text-center">
-            <a href="/" class="text-xs text-slate-400 hover:text-white">Cerrar credencial</a>
+        <div class="pt-3 border-t border-pink-200 text-center">
+            <a href="/" class="text-xs text-gray-600 hover:text-black font-semibold">Cerrar credencial</a>
         </div>
     </div>
 
     <script>
-        // Alterna la visibilidad entre las 3 pestañas principales de la credencial
         function cambiarSeccion(tipo) {
             const secAcceso = document.getElementById('seccion-acceso');
             const secRutina = document.getElementById('seccion-rutina');
@@ -207,23 +177,22 @@
             secRutina.classList.add('hidden');
             secEvolucion.classList.add('hidden');
 
-            btnAcceso.className = "py-2 rounded-xl transition text-slate-400 hover:text-white";
-            btnRutina.className = "py-2 rounded-xl transition text-slate-400 hover:text-white";
-            btnEvolucion.className = "py-2 rounded-xl transition text-slate-400 hover:text-white";
+            btnAcceso.className = "py-2 rounded-xl transition text-gray-700 hover:text-black";
+            btnRutina.className = "py-2 rounded-xl transition text-gray-700 hover:text-black";
+            btnEvolucion.className = "py-2 rounded-xl transition text-gray-700 hover:text-black";
 
             if (tipo === 'acceso') {
                 secAcceso.classList.remove('hidden');
-                btnAcceso.className = "py-2 rounded-xl transition bg-emerald-500 text-white shadow-md";
+                btnAcceso.className = "py-2 rounded-xl transition bg-[#da1884] text-white shadow-sm";
             } else if (tipo === 'rutina') {
                 secRutina.classList.remove('hidden');
-                btnRutina.className = "py-2 rounded-xl transition bg-indigo-600 text-white shadow-md";
+                btnRutina.className = "py-2 rounded-xl transition bg-[#da1884] text-white shadow-sm";
             } else {
                 secEvolucion.classList.remove('hidden');
-                btnEvolucion.className = "py-2 rounded-xl transition bg-emerald-600 text-white shadow-md";
+                btnEvolucion.className = "py-2 rounded-xl transition bg-[#da1884] text-white shadow-sm";
             }
         }
 
-        // Tilda o destilda un ejercicio en vivo sin recargar la pantalla
         async function toggleEjercicio(ejercicioId) {
             try {
                 const res = await fetch('/api/socio/rutina/toggle-ejercicio/' + ejercicioId, { method: 'POST' });
@@ -235,20 +204,19 @@
                 const btn = card.querySelector('button');
 
                 if (data.completado) {
-                    card.className = "p-3 rounded-2xl border transition flex items-start justify-between gap-3 bg-emerald-950/20 border-emerald-800/60 opacity-80";
-                    nombre.className = "text-sm font-bold line-through text-slate-400";
-                    btn.className = "mt-1 w-7 h-7 rounded-xl flex items-center justify-center border transition bg-emerald-500 border-emerald-400 text-white";
+                    card.className = "p-3 rounded-2xl border transition flex items-start justify-between gap-3 bg-pink-100 border-pink-300 opacity-80";
+                    nombre.className = "text-sm font-bold line-through text-gray-500";
+                    btn.className = "mt-1 w-7 h-7 rounded-xl flex items-center justify-center border transition bg-[#da1884] border-[#da1884] text-white";
                 } else {
-                    card.className = "p-3 rounded-2xl border transition flex items-start justify-between gap-3 bg-slate-950 border-slate-800";
-                    nombre.className = "text-sm font-bold text-white";
-                    btn.className = "mt-1 w-7 h-7 rounded-xl flex items-center justify-center border transition bg-slate-900 border-slate-700 text-transparent hover:border-emerald-500";
+                    card.className = "p-3 rounded-2xl border transition flex items-start justify-between gap-3 bg-pink-50 border-pink-200";
+                    nombre.className = "text-sm font-bold text-black";
+                    btn.className = "mt-1 w-7 h-7 rounded-xl flex items-center justify-center border transition bg-white border-pink-300 text-transparent hover:border-[#da1884]";
                 }
             } catch (err) { alert('Error al actualizar.'); }
         }
 
-        // Limpia todos los tildes para comenzar una nueva semana de entrenamiento
         async function reiniciarRutina(rutinaId) {
-            if (!confirm('¿Deseas reiniciar los tildes de toda la rutina para empezar de nuevo?')) return;
+            if (!confirm('¿Reiniciar tildes de toda la rutina?')) return;
             const res = await fetch('/api/socio/rutina/reiniciar/' + rutinaId, { method: 'POST' });
             if (res.ok) window.location.reload();
         }

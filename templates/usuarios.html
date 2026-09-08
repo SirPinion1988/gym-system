@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Usuarios del Sistema | {{ gym_nombre }}</title>
+    <title>Usuarios y Permisos | {{ gym_nombre }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- VINCULACIÓN AUTOMÁTICA DEL TEMA ROSA BARBIE -->
+    <link rel="stylesheet" href="/static/theme-override.css">
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
     <!-- Navbar -->
@@ -28,31 +30,36 @@
                 <a href="/molinete" class="text-slate-400 hover:text-white transition">Molinete</a>
             </nav>
         </div>
-        <a href="/logout" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg text-rose-400 transition font-semibold">Cerrar Sesión</a>
+        <div class="flex items-center space-x-3">
+            <button onclick="document.getElementById('modal-cambiar-password').classList.remove('hidden')" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg transition font-semibold">
+                🔑 Cambiar Clave
+            </button>
+            <a href="/logout" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg text-rose-400 transition font-semibold">Cerrar Sesión</a>
+        </div>
     </header>
 
     <main class="flex-1 p-6 max-w-5xl mx-auto w-full space-y-6">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-                <h1 class="text-2xl font-black text-white">Personal del Gimnasio y Permisos</h1>
-                <p class="text-xs text-slate-400">Creación de usuarios con rol general para la recepción y operación diaria.</p>
+                <h1 class="text-2xl font-black text-white">Personal y Jerarquía de Accesos</h1>
+                <p class="text-xs text-slate-400">
+                    Sesión activa: <b class="text-emerald-400">{{ user.nombre }}</b> (Rol: {{ user.rol }})
+                </p>
             </div>
             <button onclick="document.getElementById('modal-crear-usuario').classList.remove('hidden')" class="bg-emerald-500 hover:bg-emerald-600 px-4 py-2 rounded-xl text-xs font-bold text-white transition flex items-center gap-1.5 shadow-lg shadow-emerald-500/20">
                 <span>+</span> Nuevo Usuario
             </button>
         </div>
 
-        <!-- ========================================================== -->
-        <!-- TABLA: USUARIOS ACTIVOS Y DESACTIVADOS DEL SISTEMA        -->
-        <!-- ========================================================== -->
+        <!-- TABLA DE USUARIOS CON ROLES -->
         <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-sm">
                     <thead class="bg-slate-950/60 text-slate-400 text-xs uppercase border-b border-slate-800">
                         <tr>
-                            <th class="p-3.5">Nombre</th>
+                            <th class="p-3.5">Nombre y Correo</th>
                             <th class="p-3.5">Usuario</th>
-                            <th class="p-3.5">Rol / Permisos</th>
+                            <th class="p-3.5">Rol Asignado</th>
                             <th class="p-3.5 text-center">Estado</th>
                             <th class="p-3.5 text-right">Acción</th>
                         </tr>
@@ -60,13 +67,18 @@
                     <tbody class="divide-y divide-slate-800">
                         {% for u in usuarios %}
                         <tr class="hover:bg-slate-800/30 transition">
-                            <td class="p-3.5 font-bold text-white">{{ u.nombre }}</td>
+                            <td class="p-3.5">
+                                <div class="font-bold text-white">{{ u.nombre }}</div>
+                                <div class="text-xs text-slate-400">{{ u.email or 'Sin correo registrado' }}</div>
+                            </td>
                             <td class="p-3.5 font-mono text-xs text-slate-300">@{{ u.username }}</td>
                             <td class="p-3.5">
-                                {% if u.rol == 'ADMIN' %}
-                                    <span class="px-2.5 py-1 rounded-full text-xs font-black bg-indigo-950 text-indigo-400 border border-indigo-800">ADMIN GENERAL</span>
+                                {% if u.rol == 'MASTER' %}
+                                    <span class="px-2.5 py-1 rounded-full text-xs font-black bg-amber-950 text-amber-400 border border-amber-800">SUPERUSUARIO (MASTER)</span>
+                                {% elif u.rol == 'ADMIN' %}
+                                    <span class="px-2.5 py-1 rounded-full text-xs font-black bg-indigo-950 text-indigo-400 border border-indigo-800">ADMINISTRADOR</span>
                                 {% else %}
-                                    <span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700">ROL GENERAL (OPERADOR)</span>
+                                    <span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700">OPERADOR MOSTRADOR</span>
                                 {% endif %}
                             </td>
                             <td class="p-3.5 text-center">
@@ -77,15 +89,14 @@
                                 {% endif %}
                             </td>
                             <td class="p-3.5 text-right">
-                                <!-- No permite que el usuario se desactive a sí mismo por error -->
-                                {% if u.id != user.id %}
+                                {% if u.id != user.id and (user.rol == 'MASTER' or (user.rol == 'ADMIN' and u.rol == 'OPERADOR')) %}
                                     <form action="/usuarios/toggle-estado/{{ u.id }}" method="POST" class="inline">
                                         <button type="submit" class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition">
                                             {% if u.activo %}Desactivar{% else %}Activar{% endif %}
                                         </button>
                                     </form>
                                 {% else %}
-                                    <span class="text-xs text-slate-500 italic">Sesión actual</span>
+                                    <span class="text-xs text-slate-500 italic">Protegido</span>
                                 {% endif %}
                             </td>
                         </tr>
@@ -96,33 +107,61 @@
         </div>
     </main>
 
-    <!-- MODAL CREAR NUEVO USUARIO / EMPLEADO -->
-    <div id="modal-crear-usuario" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-md shadow-2xl">
-            <h3 class="font-bold text-lg mb-4 text-white">Alta de Personal</h3>
+    <!-- MODAL CREAR USUARIO CON SELECTOR DE ROL COMPLETO -->
+    <div id="modal-crear-usuario" class="hidden fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4">
+            <h3 class="font-bold text-lg text-white">Alta de Personal</h3>
             <form action="/usuarios/crear" method="POST" class="space-y-3">
                 <div>
                     <label class="block text-xs text-slate-400 mb-1">Nombre Completo</label>
-                    <input type="text" name="nombre" required placeholder="Ej: Lucas Pérez" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-emerald-500">
+                    <input type="text" name="nombre" required placeholder="Ej: Lucas Martínez" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white">
                 </div>
                 <div>
-                    <label class="block text-xs text-slate-400 mb-1">Nombre de Usuario (para ingresar)</label>
-                    <input type="text" name="username" required placeholder="Ej: lucas.recepcion" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-emerald-500">
+                    <label class="block text-xs text-slate-400 mb-1">Nombre de Usuario</label>
+                    <input type="text" name="username" required placeholder="Ej: lucas.recepcion" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white">
                 </div>
                 <div>
-                    <label class="block text-xs text-slate-400 mb-1">Contraseña</label>
-                    <input type="password" name="password" required placeholder="••••••••" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-emerald-500">
+                    <label class="block text-xs text-slate-400 mb-1">Correo Electrónico (para recuperación)</label>
+                    <input type="email" name="email" required placeholder="lucas@correo.com" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white">
                 </div>
                 <div>
-                    <label class="block text-xs text-slate-400 mb-1">Nivel de Acceso</label>
-                    <select name="rol" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-emerald-500">
-                        <option value="OPERADOR">Operador General (Sin creación de usuarios)</option>
-                        <option value="ADMIN">Administrador General (Acceso Total)</option>
+                    <label class="block text-xs text-slate-400 mb-1">Contraseña Inicial</label>
+                    <input type="password" name="password" required placeholder="••••••••" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white">
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Rol / Permisos</label>
+                    <select name="rol" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white">
+                        <option value="OPERADOR">Operador (Recepción y Kiosco)</option>
+                        <option value="ADMIN">Administrador (Control de Socios y Caja)</option>
+                        {% if user.rol == 'MASTER' %}
+                        <option value="MASTER">SuperUsuario Master (Acceso Total)</option>
+                        {% endif %}
                     </select>
                 </div>
-                <div class="flex justify-end gap-2 pt-3">
-                    <button type="button" onclick="document.getElementById('modal-crear-usuario').classList.add('hidden')" class="px-4 py-2 bg-slate-800 rounded-lg text-xs font-semibold hover:bg-slate-700 transition">Cancelar</button>
-                    <button type="submit" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 rounded-lg text-xs font-bold text-white transition">Crear Acceso</button>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="document.getElementById('modal-crear-usuario').classList.add('hidden')" class="px-4 py-2 bg-slate-800 rounded-lg text-xs font-semibold">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 rounded-lg text-xs font-bold text-white">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL CAMBIAR CONTRASEÑA PROPIA -->
+    <div id="modal-cambiar-password" class="hidden fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-sm shadow-2xl space-y-4">
+            <h3 class="font-bold text-lg text-white">Cambiar Mi Contraseña</h3>
+            <form action="/usuarios/cambiar-mi-password" method="POST" class="space-y-3">
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Contraseña Actual</label>
+                    <input type="password" name="password_actual" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white">
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Nueva Contraseña</label>
+                    <input type="password" name="password_nueva" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white">
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="document.getElementById('modal-cambiar-password').classList.add('hidden')" class="px-4 py-2 bg-slate-800 rounded-lg text-xs font-semibold">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-xs font-bold text-white">Actualizar Clave</button>
                 </div>
             </form>
         </div>
