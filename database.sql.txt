@@ -1,23 +1,65 @@
 -- ==========================================================
--- 1. TABLA DE USUARIOS DEL SISTEMA (ADMIN Y OPERADORES)
+-- 1. TABLA: USUARIOS DEL SISTEMA (MASTER, ADMIN Y OPERADORES)
 -- ==========================================================
 CREATE TABLE IF NOT EXISTS usuarios_sistema (
     id SERIAL PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     nombre VARCHAR(100) NOT NULL,
+    email VARCHAR(120),
     rol VARCHAR(20) DEFAULT 'OPERADOR',
-    activo BOOLEAN DEFAULT TRUE
+    activo BOOLEAN DEFAULT TRUE,
+    reset_token VARCHAR(120),
+    reset_token_expira TIMESTAMP
 );
 
+-- Migraciones seguras: agregan columnas si la tabla ya existía previamente
+ALTER TABLE usuarios_sistema ADD COLUMN IF NOT EXISTS email VARCHAR(120);
 ALTER TABLE usuarios_sistema ADD COLUMN IF NOT EXISTS rol VARCHAR(20) DEFAULT 'OPERADOR';
 ALTER TABLE usuarios_sistema ADD COLUMN IF NOT EXISTS activo BOOLEAN DEFAULT TRUE;
-
--- Garantizar permisos totales al usuario administrador inicial
-UPDATE usuarios_sistema SET rol = 'ADMIN', activo = TRUE WHERE username = 'admin';
+ALTER TABLE usuarios_sistema ADD COLUMN IF NOT EXISTS reset_token VARCHAR(120);
+ALTER TABLE usuarios_sistema ADD COLUMN IF NOT EXISTS reset_token_expira TIMESTAMP;
 
 -- ==========================================================
--- 2. TABLA DE PLANES Y TARIFAS
+-- 2. USUARIOS POR DEFECTO: SIRPINION (MASTER) Y ADMIN (ADMIN)
+-- ==========================================================
+
+-- SuperUsuario Master 'Sirpinion'
+-- Contraseña inicial: 'admin123'
+-- Correo de recuperación: 'programacionifts2026@gmail.com'
+INSERT INTO usuarios_sistema (username, password_hash, nombre, rol, email, activo)
+VALUES (
+    'Sirpinion', 
+    '$2b$12$KIX0mO3j3Hh3qV.rN5Ua6OP7VbL0fXk5dK2p1gRk4zFh7YqM3r5Sy', -- Hash seguro de 'admin123'
+    'SuperUsuario Master', 
+    'MASTER', 
+    'programacionifts2026@gmail.com', 
+    TRUE
+)
+ON CONFLICT (username) DO UPDATE 
+SET 
+    password_hash = '$2b$12$KIX0mO3j3Hh3qV.rN5Ua6OP7VbL0fXk5dK2p1gRk4zFh7YqM3r5Sy',
+    email = 'programacionifts2026@gmail.com',
+    rol = 'MASTER',
+    activo = TRUE;
+
+-- Administrador general 'admin'
+INSERT INTO usuarios_sistema (username, password_hash, nombre, rol, email, activo)
+VALUES (
+    'admin', 
+    '$2b$12$KIX0mO3j3Hh3qV.rN5Ua6OP7VbL0fXk5dK2p1gRk4zFh7YqM3r5Sy', -- Hash seguro de 'admin123'
+    'Administrador General', 
+    'ADMIN', 
+    'admin@gympro.com', 
+    TRUE
+)
+ON CONFLICT (username) DO UPDATE 
+SET 
+    rol = 'ADMIN',
+    activo = TRUE;
+
+-- ==========================================================
+-- 3. TABLA: PLANES Y TARIFAS DE MEMBRESÍAS
 -- ==========================================================
 CREATE TABLE IF NOT EXISTS planes (
     id SERIAL PRIMARY KEY,
@@ -42,7 +84,7 @@ SELECT '3 Veces por Semana', 18000.0, 30, 'Hasta 3 ingresos semanales.', TRUE
 WHERE NOT EXISTS (SELECT 1 FROM planes WHERE nombre = '3 Veces por Semana');
 
 -- ==========================================================
--- 3. TABLA DE PROFESORES Y ENTRENADORES (CON SUELDOS)
+-- 4. TABLA: PROFESORES Y ENTRENADORES (CON SUELDOS)
 -- ==========================================================
 CREATE TABLE IF NOT EXISTS profesores (
     id SERIAL PRIMARY KEY,
@@ -74,7 +116,7 @@ CREATE TABLE IF NOT EXISTS pagos_profesores (
 );
 
 -- ==========================================================
--- 4. TABLA DE ACTIVIDADES / CLASES
+-- 5. TABLA: ACTIVIDADES / CLASES COLECTIVAS
 -- ==========================================================
 CREATE TABLE IF NOT EXISTS actividades (
     id SERIAL PRIMARY KEY,
@@ -86,18 +128,19 @@ CREATE TABLE IF NOT EXISTS actividades (
 );
 
 -- ==========================================================
--- 5. TABLA DE SOCIOS (CON FOTO, APTO MÉDICO Y PRÓRROGAS)
+-- 6. TABLA: SOCIOS (CON FOTO, APTO MÉDICO EN BASE64 Y PRÓRROGAS)
 -- ==========================================================
 CREATE TABLE IF NOT EXISTS socios (
     id SERIAL PRIMARY KEY,
-    dni VARCHAR(20) UNIQUE NOT NULL,
+    dni VARCHAR(20) UNIQUE NOT NULL,           -- Funciona como Usuario para login de socio
     nombre VARCHAR(100) NOT NULL,
     apellido VARCHAR(100) NOT NULL,
     fecha_nacimiento DATE NOT NULL,
     edad INTEGER NOT NULL,
     celular VARCHAR(30) NOT NULL,
-    email VARCHAR(120) UNIQUE NOT NULL,
+    email VARCHAR(120) UNIQUE NOT NULL,        -- Funciona como Contraseña para login de socio
     foto_base64 TEXT,
+    apto_medico_base64 TEXT,                   -- Foto/escaneo optimizado del apto médico
     apto_medico_realizacion DATE,
     apto_medico_vencimiento DATE,
     qr_token VARCHAR(100) UNIQUE NOT NULL,
@@ -112,8 +155,10 @@ CREATE TABLE IF NOT EXISTS socios (
     creado_en TIMESTAMP DEFAULT NOW()
 );
 
+-- Migraciones seguras para socios
 ALTER TABLE socios ADD COLUMN IF NOT EXISTS plan_id INTEGER REFERENCES planes(id) ON DELETE SET NULL;
 ALTER TABLE socios ADD COLUMN IF NOT EXISTS foto_base64 TEXT;
+ALTER TABLE socios ADD COLUMN IF NOT EXISTS apto_medico_base64 TEXT;
 ALTER TABLE socios ADD COLUMN IF NOT EXISTS apto_medico_realizacion DATE;
 ALTER TABLE socios ADD COLUMN IF NOT EXISTS apto_medico_vencimiento DATE;
 ALTER TABLE socios ADD COLUMN IF NOT EXISTS bloqueado_manual BOOLEAN DEFAULT FALSE;
@@ -124,7 +169,7 @@ ALTER TABLE socios ADD COLUMN IF NOT EXISTS tarjeta_ultimos4 VARCHAR(4);
 ALTER TABLE socios ADD COLUMN IF NOT EXISTS creado_en TIMESTAMP DEFAULT NOW();
 
 -- ==========================================================
--- 6. TABLA DE EVOLUCIÓN FÍSICA Y MÉTRICAS CORPORALES
+-- 7. TABLA: EVOLUCIÓN FÍSICA Y MEDIDAS CORPORALES (IMC)
 -- ==========================================================
 CREATE TABLE IF NOT EXISTS evolucion_socio (
     id SERIAL PRIMARY KEY,
@@ -141,8 +186,51 @@ CREATE TABLE IF NOT EXISTS evolucion_socio (
 );
 
 -- ==========================================================
--- 7. TABLAS DE RUTINAS Y ENTRENAMIENTOS (100% INCLUIDAS)
+-- 8. TABLAS: CATÁLOGO DE EJERCICIOS Y RUTINAS TILDABLES
 -- ==========================================================
+CREATE TABLE IF NOT EXISTS catalogo_ejercicios (
+    id SERIAL PRIMARY KEY,
+    grupo_muscular VARCHAR(50) NOT NULL,
+    nombre VARCHAR(120) NOT NULL,
+    series_default INTEGER DEFAULT 3,
+    repeticiones_default VARCHAR(20) DEFAULT '10',
+    descanso_default VARCHAR(20) DEFAULT '60s'
+);
+
+-- Inserción inicial del banco de ejercicios 3x10 si la tabla está vacía
+INSERT INTO catalogo_ejercicios (grupo_muscular, nombre, series_default, repeticiones_default, descanso_default)
+SELECT g, n, 3, '10', '60s'
+FROM (VALUES
+    ('Pecho', 'Press de Banca Plano con Barra'),
+    ('Pecho', 'Press Inclinado con Mancuernas'),
+    ('Pecho', 'Aperturas en Banco Plano'),
+    ('Pecho', 'Cruce de Poleas'),
+    ('Pecho', 'Fondos en Paralelas'),
+    ('Espalda', 'Jalón al Pecho en Polea'),
+    ('Espalda', 'Remo con Barra'),
+    ('Espalda', 'Remo Unilateral con Mancuerna'),
+    ('Espalda', 'Dominadas'),
+    ('Espalda', 'Peso Muerto Convencional'),
+    ('Piernas', 'Sentadilla Libre con Barra'),
+    ('Piernas', 'Prensa 45°'),
+    ('Piernas', 'Sillón de Cuádriceps (Extensiones)'),
+    ('Piernas', 'Camilla de Isquiotibiales'),
+    ('Piernas', 'Estocadas / Zancadas con Mancuerna'),
+    ('Piernas', 'Elevación de Talones (Gemelos)'),
+    ('Hombros', 'Press Militar con Barra'),
+    ('Hombros', 'Elevaciones Laterales con Mancuerna'),
+    ('Hombros', 'Vuelos Posteriores (Pájaros)'),
+    ('Hombros', 'Press Arnold'),
+    ('Brazos', 'Curl de Bíceps con Barra Z'),
+    ('Brazos', 'Curl Martillo con Mancuernas'),
+    ('Brazos', 'Extensiones de Tríceps en Polea Alta'),
+    ('Brazos', 'Press Francés con Barra'),
+    ('Core', 'Plancha Isométrica (3x45s)'),
+    ('Core', 'Crunches Abdominales'),
+    ('Core', 'Elevación de Piernas Colgado')
+) AS t(g, n)
+WHERE NOT EXISTS (SELECT 1 FROM catalogo_ejercicios WHERE nombre = t.n);
+
 CREATE TABLE IF NOT EXISTS rutinas (
     id SERIAL PRIMARY KEY,
     socio_id INTEGER NOT NULL REFERENCES socios(id) ON DELETE CASCADE,
@@ -158,15 +246,15 @@ CREATE TABLE IF NOT EXISTS ejercicios_rutina (
     rutina_id INTEGER NOT NULL REFERENCES rutinas(id) ON DELETE CASCADE,
     dia_grupo VARCHAR(50) NOT NULL,
     ejercicio VARCHAR(120) NOT NULL,
-    series INTEGER DEFAULT 4,
-    repeticiones VARCHAR(30) DEFAULT '10-12',
+    series INTEGER DEFAULT 3,
+    repeticiones VARCHAR(30) DEFAULT '10',
     peso_sugerido VARCHAR(30) DEFAULT '',
     descanso VARCHAR(30) DEFAULT '60s',
     completado BOOLEAN DEFAULT FALSE
 );
 
 -- ==========================================================
--- 8. TABLA DE COBROS Y PAGOS (CUOTAS)
+-- 9. TABLA: COBROS Y PAGOS (CUOTAS)
 -- ==========================================================
 CREATE TABLE IF NOT EXISTS pagos (
     id SERIAL PRIMARY KEY,
@@ -181,7 +269,7 @@ CREATE TABLE IF NOT EXISTS pagos (
 ALTER TABLE pagos ADD COLUMN IF NOT EXISTS external_payment_id VARCHAR(100) UNIQUE;
 
 -- ==========================================================
--- 9. TABLA DE FACTURAS ELECTRÓNICAS (ARCA / ex AFIP)
+-- 10. TABLA: FACTURAS ELECTRÓNICAS (ARCA / EX AFIP)
 -- ==========================================================
 CREATE TABLE IF NOT EXISTS facturas (
     id SERIAL PRIMARY KEY,
@@ -197,12 +285,12 @@ CREATE TABLE IF NOT EXISTS facturas (
     enviada_por_mail BOOLEAN DEFAULT FALSE
 );
 
--- Forzar relación en cascada para evitar errores de integridad al anular cobros
+-- Asegurar restricción en cascada para evitar errores al anular cobros
 ALTER TABLE facturas DROP CONSTRAINT IF EXISTS facturas_pago_id_fkey;
 ALTER TABLE facturas ADD CONSTRAINT facturas_pago_id_fkey FOREIGN KEY (pago_id) REFERENCES pagos(id) ON DELETE CASCADE;
 
 -- ==========================================================
--- 10. TABLA DE PRODUCTOS / KIOSCO (PUNTO DE VENTA)
+-- 11. TABLA: PRODUCTOS Y KIOSCO (PUNTO DE VENTA)
 -- ==========================================================
 CREATE TABLE IF NOT EXISTS productos (
     id SERIAL PRIMARY KEY,
@@ -213,9 +301,6 @@ CREATE TABLE IF NOT EXISTS productos (
     activo BOOLEAN DEFAULT TRUE
 );
 
--- ==========================================================
--- 11. TABLA DE VENTAS DEL KIOSCO
--- ==========================================================
 CREATE TABLE IF NOT EXISTS ventas_productos (
     id SERIAL PRIMARY KEY,
     producto_id INTEGER NOT NULL REFERENCES productos(id) ON DELETE CASCADE,
@@ -226,7 +311,7 @@ CREATE TABLE IF NOT EXISTS ventas_productos (
 );
 
 -- ==========================================================
--- 12. TABLA DE AUDITORÍA Y CONTROL DE ACCESOS (MOLINETE)
+-- 12. TABLA: AUDITORÍA Y REGISTRO DE ACCESOS (MOLINETE)
 -- ==========================================================
 CREATE TABLE IF NOT EXISTS registros_acceso (
     id SERIAL PRIMARY KEY,
@@ -240,6 +325,8 @@ CREATE TABLE IF NOT EXISTS registros_acceso (
 -- 13. ÍNDICES DE RENDIMIENTO Y CONSULTA RÁPIDA
 -- ==========================================================
 CREATE INDEX IF NOT EXISTS idx_usuarios_username ON usuarios_sistema(username);
+CREATE INDEX IF NOT EXISTS idx_usuarios_email ON usuarios_sistema(email);
+CREATE INDEX IF NOT EXISTS idx_usuarios_token ON usuarios_sistema(reset_token);
 CREATE INDEX IF NOT EXISTS idx_socios_dni ON socios(dni);
 CREATE INDEX IF NOT EXISTS idx_socios_email ON socios(email);
 CREATE INDEX IF NOT EXISTS idx_socios_qr_token ON socios(qr_token);
