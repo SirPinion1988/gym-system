@@ -18,16 +18,26 @@ from sqlalchemy import func
 
 import mercadopago
 
+# Control de flujo / Rate Limiting
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
 from .database import engine, Base, get_db
 from . import models, auth, billing
 
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Sistema de Gestión de Gimnasio - GymPro")
+# Inicializar Limitador de Peticiones
+limiter = Limiter(key_func=get_remote_address)
 
-# Variables de entorno y configuración general
+app = FastAPI(title="Sistema de Gestión de Gimnasio - GymPro")
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# Variables de entorno y configuración
 GYM_NOMBRE = os.getenv("EMPRESA_RAZON_SOCIAL", "GymPro Fitness")
-MP_ACCESS_TOKEN = os.getenv("MP_ACCESS_TOKEN", "TEST-0000000000000000-000000-0000000000000000-0000000000000000-000000000")
+MP_ACCESS_TOKEN = os.getenv("MP_ACCESS_TOKEN", "TEST-0000000000000000-000000-000000-000000-0000000000000000-000000000")
 mp_sdk = mercadopago.SDK(MP_ACCESS_TOKEN)
 APP_PUBLIC_URL = os.getenv("APP_PUBLIC_URL", "https://gimnasio-app-0qhn.onrender.com")
 
@@ -67,6 +77,20 @@ def generar_qr_base64(texto: str) -> str:
     buffer = io.BytesIO()
     img.save(buffer, format="PNG")
     return base64.b64encode(buffer.getvalue()).decode()
+
+
+# --- ENDPOINT DE SALUD / KEEP-ALIVE (NO CONSUME BASE DE DATOS) ---
+@app.get("/health")
+def health_check():
+    """
+    Ruta ultraliviana para UptimeRobot / Monitoreo.
+    Responde en ~2ms y mantiene el servidor de Render activo sin sobrecargar Supabase.
+    """
+    return {
+        "status": "healthy",
+        "app": GYM_NOMBRE,
+        "timestamp": datetime.utcnow().isoformat()
+    }
 
 
 @app.on_event("startup")
@@ -150,7 +174,7 @@ def procesar_factura_y_mail(socio_id: int, pago_id: int, monto: float, concepto:
             factura.enviada_por_mail = True
             db.commit()
     except Exception as e:
-        print(f"Error facturacion/email: {e}")
+        print(f"Error facturación/email: {e}")
     finally:
         db.close()
 
@@ -170,6 +194,7 @@ def login_view(request: Request):
 
 
 @app.post("/login/admin")
+@limiter.limit("5/minute")  # Protección contra ataques de fuerza bruta
 def login_admin_action(
     request: Request,
     response: Response,
@@ -188,6 +213,7 @@ def login_admin_action(
 
 
 @app.post("/login/socio")
+@limiter.limit("10/minute")
 def login_socio_action(
     request: Request,
     dni: str = Form(...),
@@ -768,7 +794,7 @@ def crear_rutina(
     db.add(nueva_rutina)
     db.commit()
 
-    # Carga de ejercicios predefinidos según la plantilla elegida
+    # Carga de ejercicios predefinidos según la plantilla
     if plantilla == "HIPERTROFIA":
         ejercicios_plantilla = [
             ("Día 1 - Pecho y Bíceps", "Press Banca Plano con Barra", 4, "10-12", "60kg", "90s"),
@@ -1599,7 +1625,8 @@ def molinete_view(request: Request, user: Optional[models.UsuarioSistema] = Depe
 
 
 @app.post("/api/molinete/validar")
-def validar_molinete(token: str = Form(...), db: Session = Depends(get_db)):
+@limiter.limit("60/minute")  # Hasta 1 validación por segundo por lector
+def validar_molinete(request: Request, token: str = Form(...), db: Session = Depends(get_db)):
     socio = db.query(models.Socio).filter(models.Socio.qr_token == token.strip()).first()
     hoy = date.today()
 
